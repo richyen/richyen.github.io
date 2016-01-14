@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Overcoming Cache Line Contention in Large NUMA Systems</title>
+  <meta name="description" content="Introduction">
+
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="canonical" href="http://richyen.github.io/numa/cpu/tuning/cpuset/linux/postgresql/postgres/performance/scaling/2016/01/14/numa_spinlocks_issue.html">
+  <link rel="alternate" type="application/rss+xml" title="richyen @ edb" href="http://richyen.github.io/feed.xml">
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/">richyen @ edb</a>
+
+    <nav class="site-nav">
+      <a href="#" class="menu-icon">
+        <svg viewBox="0 0 18 15">
+          <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+      </a>
+
+      <div class="trigger">
+        
+          
+          <a class="page-link" href="/about/">About</a>
+          
+        
+          
+        
+          
+        
+          
+        
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Overcoming Cache Line Contention in Large NUMA Systems</h1>
+    <p class="post-meta"><time datetime="2016-01-14T13:01:09-08:00" itemprop="datePublished">Jan 14, 2016</time></p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <h1 id="introduction">Introduction</h1>
+
+<p>We’ve recently been asked to help a couple of customers that were experiencing dramatic drop-offs in performance as they dialed up the concurrency in their tests.  Oddly, prior to using new hardware, their tests could handle upwards of 500 concurrent sessions in PostgreSQL, but once they spun up PostgreSQL on their shiny new boxes, they couldn’t get past 300 users (and one couldn’t get past 140 users) without the machine grinding to a halt.</p>
+
+<p>Ultimately, the cause for these lock-ups when scaling was due to a phenomenon that doesn’t have an official name, but could simply be described as “Cache Line Contention in Large NUMA Systems.”  That’s a mouthful, and for us at EDB, we’ve simply called it “NUMA v. spinlock contention.”  When processes want to access particular memory segments, they use spinlocks (don’t go looking in pg_locks for this!) and wait for the OS scheduler to give them access to memory (and potentially move it between NUMA nodes).  Without getting into all the gory details, this typically occurs on OLTP workloads that use enough memory to span multiple NUMA memory segment, but the most active set of data is confined to one memory segment.  What it amounts to is a lot of waiting around, moving data between memory regions, and the appearance of the CPU doing a lot of work.</p>
+
+<p>If you’d like to know more about NUMA and NUMA v. spinlock contention, you can check out these resources (note that it’s not just PostgreSQL that experiences this phenomenon, but SQL Server as well):</p>
+
+<ul>
+  <li>NUMA
+    <ul>
+      <li><a href="https://en.wikipedia.org/wiki/Non-uniform_memory_access">Wikipedia</a></li>
+      <li><a href="http://queue.acm.org/detail.cfm?id=2513149">ACM Article</a></li>
+    </ul>
+  </li>
+  <li>Cache Line Contention
+    <ul>
+      <li><a href="https://events.linuxfoundation.org/sites/events/files/slides/linuxcon-2014-locking-final.pdf">HP Presentation</a></li>
+      <li><a href="http://exadat.co.uk/2015/03/21/diagnosing-spinlock-problems-by-doing-the-math/">Exadat Artcle</a></li>
+    </ul>
+  </li>
+</ul>
+
+<p>Thankfully, newer <a href="https://en.wikipedia.org/wiki/Non-uniform_memory_access#Software_support">Linux kernels (v. 3.8 and later, which translates to RHEL/CentOS 7 and Ubuntu 13.04) have improved NUMA policies baked in</a>, and the effects of this contention are mitigated.  With one particular customer, the upgrade from RHEL 6 to RHEL 7 made the problem disappear without any additional tweaking.</p>
+
+<h1 id="is-this-for-me">Is this for me?</h1>
+<p>Now, you may ask, “I’m having trouble scaling–could I be having this problem?”  Well, don’t go jumping to conclusions because your application doesn’t scale.  You’ll want to consider these factors first, before proceeding:</p>
+
+<ul>
+  <li>Are you using new hardware?  And does the new hardware not perform as well as the old hardware?</li>
+  <li>Are you running an OLTP load against the database?</li>
+  <li>Do you see performance degrade suddenly with the addition of another user/process?  Are you sure performance is not degrading gradually?</li>
+  <li>Do you see high CPU utilization, especially in %sys?</li>
+</ul>
+
+<p>If you can answer “yes” to all these questions, there’s a good chance your NUMA nodes are suffering from cache line contention, and you might want to read on.  If not, you may or may not be experiencing this phenomenon, so you can read on anyways.</p>
+
+<p>An example of what you might see in CPU activity would be the following:</p>
+
+<p><img src="https://s3.amazonaws.com/f.cl.ly/items/2s471A443K3g2X2g3c1H/kronos.png?v=63ec9505" alt="CPU Graph" />
+<img src="https://s3.amazonaws.com/f.cl.ly/items/0y180s191m0j3L353G3b/kronos2.png?v=a273a6c1" alt="CPU Graph" />
+<img src="https://s3.amazonaws.com/f.cl.ly/items/3z2B3I0n3E2D0K3a340H/kronos3.png?v=f371aa8c" alt="CPU Graph" /></p>
+
+<h1 id="identifying-the-culprit">Identifying the Culprit</h1>
+<p>The way to tell for certain if your NUMA nodes are causing headache for PostgreSQL is by simply removing NUMA handling from your server.  If you limit your processing to one CPU socket, you won’t be passing data between memory regions, and therefore you won’t experience cache line contention.  How to do this?  By creating a cpuset and running your PostgreSQL server on that one cpuset.  That way, you’re running on one NUMA node, and all your data is confined to one memory region.  If you do this, and you see your performance reach desired/previous values, you can be certain that cache line contention is causing the performance hit, and it’s time to upgrade the OS or look for other ways to get around the NUMA v. spinlocks issue.</p>
+
+<p><img src="https://s3.amazonaws.com/f.cl.ly/items/1m0C0O301G1y2n2u0h2N/skitch.png?v=5e5a6d8a" alt="The Plan" /></p>
+
+<p><em>The Plan</em></p>
+
+<h1 id="setting-up-a-cpuset">Setting up a cpuset</h1>
+<p>The process by which you set up a single cpuset on a Linux system varies by distribution, but the following steps work for the general case:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="c"># to see where the cpuset "home" directory is:</span>
+mount | grep cpuset
+
+<span class="c"># to see the OS user and parameters for starting the server:</span>
+ps -ef | grep postgres
+
+<span class="c"># to see what the cores are and what memory is attached to each</span>
+numactl --hardware
+
+<span class="c"># fill in with a hyphenated range based on output of “node 0 cpus” of `numactl --hardware`</span>
+<span class="c"># EXAMPLE: NUMA0_CPUS=”0-14,60-74”</span>
+<span class="nv">NUMA0_CPUS</span><span class="o">=</span>””
+
+<span class="c"># to make things easier to consistently reference, something similar to:</span>
+<span class="nb">export </span><span class="nv">CPUSET_HOME</span><span class="o">=</span><span class="s2">"&lt;path where cpusets are mounted&gt;"</span>
+<span class="nb">export </span><span class="nv">PGSERVERUSER</span><span class="o">=</span>&lt;whatever OS user runs the service&gt;
+
+<span class="c"># set up the single-package cpuset</span>
+sudo mkdir <span class="nv">$CPUSET_HOME</span>/postgres
+sudo /bin/bash -c <span class="s2">"echo </span><span class="nv">$NUMA0_CPUS</span><span class="s2"> &gt;</span><span class="nv">$CPUSET_HOME</span><span class="s2">/postgres/cpus"</span>
+sudo /bin/bash -c <span class="s2">"echo '0' &gt;</span><span class="nv">$CPUSET_HOME</span><span class="s2">/postgres/mems"</span>
+sudo chown <span class="nv">$PGSERVERUSER</span> <span class="nv">$CPUSET_HOME</span>/postgres/tasks
+
+<span class="c"># start the database service on the special cpuset for testing</span>
+sudo su - <span class="nv">$PGSERVERUSER</span>
+<span class="nb">export </span><span class="nv">CPUSET_HOME</span><span class="o">=</span><span class="s2">"&lt;path where cpusets are mounted&gt;"</span>
+<span class="nb">echo</span> <span class="nv">$$</span> &gt;<span class="nv">$CPUSET_HOME</span>/postgres/tasks
+pg_ctl start &lt;usual start parameters&gt;</code></pre></figure>
+
+<p><em>NOTE:</em> do not use <code class="highlighter-rouge">sysctl</code> or <code class="highlighter-rouge">service</code> or <code class="highlighter-rouge">/etc/init.d/</code> scripts to start PostgreSQL–be sure to just use plain old pg_ctl to ensure that the server gets started on the cpuset you created.</p>
+
+<p>If this doesn’t work for you, you’ll need to do a bit of googling around for <a href="https://www.kernel.org/doc/Documentation/cgroups/cpusets.txt">cpusets</a>, or to find a way to limit all your PostgreSQL processes to one CPU.</p>
+
+<p>Once you’ve set up the cpuset, and verified PostgreSQL is running and you can log in, start up your application(s) and/or tests, and see if the performance behavior improves.  Watch the CPU graph to make sure that only a fraction of your processors are actually being utilized.  If you are able to achieve better performance, you can be certain that NUMA cache line contention is the cause for your earlier performance degradation.</p>
+
+<h1 id="the-fix">The Fix</h1>
+<p>From here, you will want to look into ensuring that your <a href="https://en.wikipedia.org/wiki/Non-uniform_memory_access#Software_support">Linux kernel is up-to-date with the latest kernel-level NUMA-handling features</a>.  If upgrading your OS is not an option, you may want to look into other ways around the issue, which include creating a separate cpuset for each PostgreSQL cluster/instance, limiting your real database connections to a safe level with a connection pooler (like pgbouncer), consider other hardware, or spread your data and workload across different servers.</p>
+
+<h1 id="happy-trails">Happy Trails!</h1>
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+    <footer class="site-footer">
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">richyen @ edb</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li>richyen @ edb</li>
+          <li><a href="mailto:richard.yen@enterprisedb.com">richard.yen@enterprisedb.com</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-2">
+        <ul class="social-media-list">
+          
+          <li>
+            <a href="https://github.com/richyen"><span class="icon icon--github"><svg viewBox="0 0 16 16"><path fill="#828282" d="M7.999,0.431c-4.285,0-7.76,3.474-7.76,7.761 c0,3.428,2.223,6.337,5.307,7.363c0.388,0.071,0.53-0.168,0.53-0.374c0-0.184-0.007-0.672-0.01-1.32 c-2.159,0.469-2.614-1.04-2.614-1.04c-0.353-0.896-0.862-1.135-0.862-1.135c-0.705-0.481,0.053-0.472,0.053-0.472 c0.779,0.055,1.189,0.8,1.189,0.8c0.692,1.186,1.816,0.843,2.258,0.645c0.071-0.502,0.271-0.843,0.493-1.037 C4.86,11.425,3.049,10.76,3.049,7.786c0-0.847,0.302-1.54,0.799-2.082C3.768,5.507,3.501,4.718,3.924,3.65 c0,0,0.652-0.209,2.134,0.796C6.677,4.273,7.34,4.187,8,4.184c0.659,0.003,1.323,0.089,1.943,0.261 c1.482-1.004,2.132-0.796,2.132-0.796c0.423,1.068,0.157,1.857,0.077,2.054c0.497,0.542,0.798,1.235,0.798,2.082 c0,2.981-1.814,3.637-3.543,3.829c0.279,0.24,0.527,0.713,0.527,1.437c0,1.037-0.01,1.874-0.01,2.129 c0,0.208,0.14,0.449,0.534,0.373c3.081-1.028,5.302-3.935,5.302-7.362C15.76,3.906,12.285,0.431,7.999,0.431z"/></svg>
+</span><span class="username">richyen</span></a>
+
+          </li>
+          
+
+          
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-3">
+        <p></p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+
+
+  </body>
+
+</html>

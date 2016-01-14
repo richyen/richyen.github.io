@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>richyen @ edb</title>
+    <description></description>
+    <link>http://richyen.github.io/</link>
+    <atom:link href="http://richyen.github.io/feed.xml" rel="self" type="application/rss+xml"/>
+    <pubDate>Thu, 14 Jan 2016 13:31:02 -0800</pubDate>
+    <lastBuildDate>Thu, 14 Jan 2016 13:31:02 -0800</lastBuildDate>
+    <generator>Jekyll v3.0.1</generator>
+    
+      <item>
+        <title>Overcoming Cache Line Contention in Large NUMA Systems</title>
+        <description>&lt;h1 id=&quot;introduction&quot;&gt;Introduction&lt;/h1&gt;
+
+&lt;p&gt;We’ve recently been asked to help a couple of customers that were experiencing dramatic drop-offs in performance as they dialed up the concurrency in their tests.  Oddly, prior to using new hardware, their tests could handle upwards of 500 concurrent sessions in PostgreSQL, but once they spun up PostgreSQL on their shiny new boxes, they couldn’t get past 300 users (and one couldn’t get past 140 users) without the machine grinding to a halt.&lt;/p&gt;
+
+&lt;p&gt;Ultimately, the cause for these lock-ups when scaling was due to a phenomenon that doesn’t have an official name, but could simply be described as “Cache Line Contention in Large NUMA Systems.”  That’s a mouthful, and for us at EDB, we’ve simply called it “NUMA v. spinlock contention.”  When processes want to access particular memory segments, they use spinlocks (don’t go looking in pg_locks for this!) and wait for the OS scheduler to give them access to memory (and potentially move it between NUMA nodes).  Without getting into all the gory details, this typically occurs on OLTP workloads that use enough memory to span multiple NUMA memory segment, but the most active set of data is confined to one memory segment.  What it amounts to is a lot of waiting around, moving data between memory regions, and the appearance of the CPU doing a lot of work.&lt;/p&gt;
+
+&lt;p&gt;If you’d like to know more about NUMA and NUMA v. spinlock contention, you can check out these resources (note that it’s not just PostgreSQL that experiences this phenomenon, but SQL Server as well):&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;NUMA
+    &lt;ul&gt;
+      &lt;li&gt;&lt;a href=&quot;https://en.wikipedia.org/wiki/Non-uniform_memory_access&quot;&gt;Wikipedia&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;http://queue.acm.org/detail.cfm?id=2513149&quot;&gt;ACM Article&lt;/a&gt;&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;Cache Line Contention
+    &lt;ul&gt;
+      &lt;li&gt;&lt;a href=&quot;https://events.linuxfoundation.org/sites/events/files/slides/linuxcon-2014-locking-final.pdf&quot;&gt;HP Presentation&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href=&quot;http://exadat.co.uk/2015/03/21/diagnosing-spinlock-problems-by-doing-the-math/&quot;&gt;Exadat Artcle&lt;/a&gt;&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Thankfully, newer &lt;a href=&quot;https://en.wikipedia.org/wiki/Non-uniform_memory_access#Software_support&quot;&gt;Linux kernels (v. 3.8 and later, which translates to RHEL/CentOS 7 and Ubuntu 13.04) have improved NUMA policies baked in&lt;/a&gt;, and the effects of this contention are mitigated.  With one particular customer, the upgrade from RHEL 6 to RHEL 7 made the problem disappear without any additional tweaking.&lt;/p&gt;
+
+&lt;h1 id=&quot;is-this-for-me&quot;&gt;Is this for me?&lt;/h1&gt;
+&lt;p&gt;Now, you may ask, “I’m having trouble scaling–could I be having this problem?”  Well, don’t go jumping to conclusions because your application doesn’t scale.  You’ll want to consider these factors first, before proceeding:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Are you using new hardware?  And does the new hardware not perform as well as the old hardware?&lt;/li&gt;
+  &lt;li&gt;Are you running an OLTP load against the database?&lt;/li&gt;
+  &lt;li&gt;Do you see performance degrade suddenly with the addition of another user/process?  Are you sure performance is not degrading gradually?&lt;/li&gt;
+  &lt;li&gt;Do you see high CPU utilization, especially in %sys?&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;If you can answer “yes” to all these questions, there’s a good chance your NUMA nodes are suffering from cache line contention, and you might want to read on.  If not, you may or may not be experiencing this phenomenon, so you can read on anyways.&lt;/p&gt;
+
+&lt;p&gt;An example of what you might see in CPU activity would be the following:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://s3.amazonaws.com/f.cl.ly/items/2s471A443K3g2X2g3c1H/kronos.png?v=63ec9505&quot; alt=&quot;CPU Graph&quot; /&gt;
+&lt;img src=&quot;https://s3.amazonaws.com/f.cl.ly/items/0y180s191m0j3L353G3b/kronos2.png?v=a273a6c1&quot; alt=&quot;CPU Graph&quot; /&gt;
+&lt;img src=&quot;https://s3.amazonaws.com/f.cl.ly/items/3z2B3I0n3E2D0K3a340H/kronos3.png?v=f371aa8c&quot; alt=&quot;CPU Graph&quot; /&gt;&lt;/p&gt;
+
+&lt;h1 id=&quot;identifying-the-culprit&quot;&gt;Identifying the Culprit&lt;/h1&gt;
+&lt;p&gt;The way to tell for certain if your NUMA nodes are causing headache for PostgreSQL is by simply removing NUMA handling from your server.  If you limit your processing to one CPU socket, you won’t be passing data between memory regions, and therefore you won’t experience cache line contention.  How to do this?  By creating a cpuset and running your PostgreSQL server on that one cpuset.  That way, you’re running on one NUMA node, and all your data is confined to one memory region.  If you do this, and you see your performance reach desired/previous values, you can be certain that cache line contention is causing the performance hit, and it’s time to upgrade the OS or look for other ways to get around the NUMA v. spinlocks issue.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://s3.amazonaws.com/f.cl.ly/items/1m0C0O301G1y2n2u0h2N/skitch.png?v=5e5a6d8a&quot; alt=&quot;The Plan&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;The Plan&lt;/em&gt;&lt;/p&gt;
+
+&lt;h1 id=&quot;setting-up-a-cpuset&quot;&gt;Setting up a cpuset&lt;/h1&gt;
+&lt;p&gt;The process by which you set up a single cpuset on a Linux system varies by distribution, but the following steps work for the general case:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;&lt;span class=&quot;c&quot;&gt;# to see where the cpuset &quot;home&quot; directory is:&lt;/span&gt;
+mount | grep cpuset
+
+&lt;span class=&quot;c&quot;&gt;# to see the OS user and parameters for starting the server:&lt;/span&gt;
+ps -ef | grep postgres
+
+&lt;span class=&quot;c&quot;&gt;# to see what the cores are and what memory is attached to each&lt;/span&gt;
+numactl --hardware
+
+&lt;span class=&quot;c&quot;&gt;# fill in with a hyphenated range based on output of “node 0 cpus” of `numactl --hardware`&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;# EXAMPLE: NUMA0_CPUS=”0-14,60-74”&lt;/span&gt;
+&lt;span class=&quot;nv&quot;&gt;NUMA0_CPUS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;””
+
+&lt;span class=&quot;c&quot;&gt;# to make things easier to consistently reference, something similar to:&lt;/span&gt;
+&lt;span class=&quot;nb&quot;&gt;export &lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;CPUSET_HOME&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&amp;lt;path where cpusets are mounted&amp;gt;&quot;&lt;/span&gt;
+&lt;span class=&quot;nb&quot;&gt;export &lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;PGSERVERUSER&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&amp;lt;whatever OS user runs the service&amp;gt;
+
+&lt;span class=&quot;c&quot;&gt;# set up the single-package cpuset&lt;/span&gt;
+sudo mkdir &lt;span class=&quot;nv&quot;&gt;$CPUSET_HOME&lt;/span&gt;/postgres
+sudo /bin/bash -c &lt;span class=&quot;s2&quot;&gt;&quot;echo &lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$NUMA0_CPUS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; &amp;gt;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CPUSET_HOME&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;/postgres/cpus&quot;&lt;/span&gt;
+sudo /bin/bash -c &lt;span class=&quot;s2&quot;&gt;&quot;echo &#39;0&#39; &amp;gt;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CPUSET_HOME&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;/postgres/mems&quot;&lt;/span&gt;
+sudo chown &lt;span class=&quot;nv&quot;&gt;$PGSERVERUSER&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$CPUSET_HOME&lt;/span&gt;/postgres/tasks
+
+&lt;span class=&quot;c&quot;&gt;# start the database service on the special cpuset for testing&lt;/span&gt;
+sudo su - &lt;span class=&quot;nv&quot;&gt;$PGSERVERUSER&lt;/span&gt;
+&lt;span class=&quot;nb&quot;&gt;export &lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;CPUSET_HOME&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&amp;lt;path where cpusets are mounted&amp;gt;&quot;&lt;/span&gt;
+&lt;span class=&quot;nb&quot;&gt;echo&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$$&lt;/span&gt; &amp;gt;&lt;span class=&quot;nv&quot;&gt;$CPUSET_HOME&lt;/span&gt;/postgres/tasks
+pg_ctl start &amp;lt;usual start parameters&amp;gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;&lt;em&gt;NOTE:&lt;/em&gt; do not use &lt;code class=&quot;highlighter-rouge&quot;&gt;sysctl&lt;/code&gt; or &lt;code class=&quot;highlighter-rouge&quot;&gt;service&lt;/code&gt; or &lt;code class=&quot;highlighter-rouge&quot;&gt;/etc/init.d/&lt;/code&gt; scripts to start PostgreSQL–be sure to just use plain old pg_ctl to ensure that the server gets started on the cpuset you created.&lt;/p&gt;
+
+&lt;p&gt;If this doesn’t work for you, you’ll need to do a bit of googling around for &lt;a href=&quot;https://www.kernel.org/doc/Documentation/cgroups/cpusets.txt&quot;&gt;cpusets&lt;/a&gt;, or to find a way to limit all your PostgreSQL processes to one CPU.&lt;/p&gt;
+
+&lt;p&gt;Once you’ve set up the cpuset, and verified PostgreSQL is running and you can log in, start up your application(s) and/or tests, and see if the performance behavior improves.  Watch the CPU graph to make sure that only a fraction of your processors are actually being utilized.  If you are able to achieve better performance, you can be certain that NUMA cache line contention is the cause for your earlier performance degradation.&lt;/p&gt;
+
+&lt;h1 id=&quot;the-fix&quot;&gt;The Fix&lt;/h1&gt;
+&lt;p&gt;From here, you will want to look into ensuring that your &lt;a href=&quot;https://en.wikipedia.org/wiki/Non-uniform_memory_access#Software_support&quot;&gt;Linux kernel is up-to-date with the latest kernel-level NUMA-handling features&lt;/a&gt;.  If upgrading your OS is not an option, you may want to look into other ways around the issue, which include creating a separate cpuset for each PostgreSQL cluster/instance, limiting your real database connections to a safe level with a connection pooler (like pgbouncer), consider other hardware, or spread your data and workload across different servers.&lt;/p&gt;
+
+&lt;h1 id=&quot;happy-trails&quot;&gt;Happy Trails!&lt;/h1&gt;
+</description>
+        <pubDate>Thu, 14 Jan 2016 13:01:09 -0800</pubDate>
+        <link>http://richyen.github.io/numa/cpu/tuning/cpuset/linux/postgresql/postgres/performance/scaling/2016/01/14/numa_spinlocks_issue.html</link>
+        <guid isPermaLink="true">http://richyen.github.io/numa/cpu/tuning/cpuset/linux/postgresql/postgres/performance/scaling/2016/01/14/numa_spinlocks_issue.html</guid>
+        
+        
+        <category>NUMA</category>
+        
+        <category>CPU</category>
+        
+        <category>tuning</category>
+        
+        <category>cpuset</category>
+        
+        <category>linux</category>
+        
+        <category>postgreSQL</category>
+        
+        <category>postgres</category>
+        
+        <category>performance</category>
+        
+        <category>scaling</category>
+        
+      </item>
+    
+  </channel>
+</rss>
