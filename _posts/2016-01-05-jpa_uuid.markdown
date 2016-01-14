@@ -1,0 +1,302 @@
+---
+layout: post
+title:  "Using UUIDs with JPA"
+date:   2016-01-05 13:23:09 -0800
+categories: Java JDBC JPA EclipseLink UUID Datatypes PostgreSQL
+---
+
+# Introduction
+Postgres supports a variety of data types that allows data architects to store their data consistently, enforce constraints through validation, maximize performance, and maximize space.  Recently, I was asked to show someone how to store a UUID (Universally Unique Identifier) into Postgres by way of JPA (Java Persistence API).
+
+Now, you may ask, “Why care so much about storing UUIDs as a UUID type in Postgres?  Wouldn’t it be simpler to store your UUIDs as TEXT or VARCHAR types?”  Well, yes, but keep in mind that the UUID type is constrained to 16 bytes, whereas the TEXT type will be more than double the size:
+
+{% highlight txt %}
+select 
+    pg_column_size('8397B65C-267E-480A-9D2C-1CED7BFD7739'::text) as "text size (in bytes)",
+    pg_column_size('8397B65C-267E-480A-9D2C-1CED7BFD7739'::uuid) as "uuid size (in bytes)";
+
+ text size (in bytes) | uuid size (in bytes) 
+----------------------+----------------------
+                   40 |                   16
+{% endhighlight %}
+
+Not only that, the UUID type has built-in validation to ensure that you have the correct 8-4-4-4-12 formatting.
+
+The problem here is that when using JPA it’s not trivial to manipulate UUIDs, as your Entity definitions require strict mapping of data types.  If you try to insert into a UUID column using a java.util.UUID, you’ll get an error saying “ERROR: column "studentid" is of type uuid but expression is of type bytea.” To circumvent this, many people cut corners by simply defining their UUID columns as TEXT, and just use Java String objects to get the job done.   However, as I mentioned above, those who do this will miss out on validation and compactness features that come with using the UUID data type.
+
+# An Example
+Fortunately, getting your JPA-based program working with UUIDs is not terribly hard.  The EclipseLink implementation of JPA makes it fairly simple.  Suppose you had the following table:
+
+{% highlight sql %}
+CREATE TABLE student (
+    id serial PRIMARY KEY,
+    studentname text,
+    studentid uuid
+);
+{% endhighlight %}
+
+## Step 1: The Java Class
+In order to get Java to write into this table, you’ll first need to create a Java class (we’ll call it `student.java`):
+
+{% highlight java %}
+package com.test.jpa;
+
+import java.util.UUID;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.Table;
+import com.test.jpa.UUIDConverter;
+import org.eclipse.persistence.annotations.Convert;
+import org.eclipse.persistence.annotations.Converter;
+
+
+@Entity
+@Table(name = "student")
+@Converter(name="uuidConverter", converterClass=UUIDConverter.class)
+public class Student implements java.io.Serializable {
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.AUTO)
+	@Column(name="id")
+	private long rowId;
+	@Column(name = "studentname")
+	private String studentName;
+	@Column(name="studentid")
+	@Convert("uuidConverter")
+	private UUID studentId;
+
+	public void setId(long rowId) {
+		this.rowId = rowId;
+	}
+
+	public long getId() {
+		return rowId;
+	}
+
+	public void setStudentName(String studentName) {
+		this.studentName = studentName;
+	}
+
+	public String getStudentName() {
+		return studentName;
+	}
+
+	public void setStudentId(UUID studentId) {
+		this.studentId = studentId;
+	}
+	
+	public UUID getStudentId() {
+		return studentId;
+	}
+}
+{% endhighlight %}
+
+## Step 2: The Converter
+As you can see in the yellow highlighted text, some Java Converters are used.  You’ll need to write up a simple Converter to implement the use of UUIDs (we’ll call it `UUIDConverter.java`):
+
+{% highlight java %}
+package com.test.jpa;
+
+import java.util.UUID;
+
+import org.eclipse.persistence.internal.helper.DatabaseField;
+import org.eclipse.persistence.mappings.DatabaseMapping;
+import org.eclipse.persistence.mappings.DirectCollectionMapping;
+import org.eclipse.persistence.mappings.converters.Converter;
+import org.eclipse.persistence.sessions.Session;
+
+public class UUIDConverter implements Converter {
+
+	@Override
+	public Object convertObjectValueToDataValue(Object objectValue,
+			Session session) {
+		return objectValue;
+	}
+
+	@Override
+	public UUID convertDataValueToObjectValue(Object dataValue,
+			Session session) {
+		return (UUID) dataValue;
+	}
+
+	@Override
+	public boolean isMutable() {
+		return true;
+	}
+
+	@Override
+	public void initialize(DatabaseMapping mapping, Session session) {
+		final DatabaseField field;
+		if (mapping instanceof DirectCollectionMapping) {
+			// handle @ElementCollection...
+			field = ((DirectCollectionMapping) mapping).getDirectField();
+		} else {
+			field = mapping.getField();
+		}
+
+		field.setSqlType(java.sql.Types.OTHER);
+		field.setTypeName("java.util.UUID");
+		field.setColumnDefinition("UUID");
+	}
+}
+{% endhighlight %}
+
+## Step 3: The Entity Manager
+After this, you’ll need to create an Entity Manager, if you don’t have one already (we’ll call it `EntityManagerUtil.java`):
+
+{% highlight java %}
+package com.test.jpa;
+
+import javax.persistence.EntityManager;
+import javax.persistence.EntityManagerFactory;
+import javax.persistence.Persistence;
+
+
+public class EntityManagerUtil {
+  private static final EntityManagerFactory entityManagerFactory;
+  static {
+    try {
+      entityManagerFactory = Persistence.createEntityManagerFactory("test");
+
+    } catch (Throwable ex) {
+      System.err.println("Initial SessionFactory creation failed." + ex);
+      throw new ExceptionInInitializerError(ex);
+    }
+  }
+
+  public static EntityManager getEntityManager() {
+    return entityManagerFactory.createEntityManager();
+
+  }
+}
+{% endhighlight %}
+
+## Step 4: The Program
+Write up a simple program to do some DML on the table, and you’re all set (`JPAExample.java`):
+
+{% highlight java %}
+package com.test.jpa;
+
+import java.util.List;
+import java.util.UUID;
+
+import javax.persistence.EntityManager;
+import javax.persistence.TypedQuery;
+
+
+public class JPAExample {
+
+	private EntityManager entityManager = EntityManagerUtil.getEntityManager();
+
+	public static void main(String[] args) {
+		JPAExample example = new JPAExample();
+		System.out.println("After insertion ");
+		Student student1 = example.saveStudent("George Washington");
+		Student student2 = example.saveStudent("Thomas Jefferson");
+		example.listStudent();
+		System.out.println("After modification ");
+		example.updateStudent(student1.getId(), "George Washington");
+		example.updateStudent(student2.getId(), "Thomas Jefferson");
+		example.listStudent();
+		System.out.println("After deletion ");
+		example.deleteStudent(student2.getId());
+		example.listStudent();
+
+
+	}
+
+	public Student saveStudent(String studentName) {
+		Student student = new Student();
+		try {
+			entityManager.getTransaction().begin();
+			student.setStudentName(studentName);
+			student.setStudentId(UUID.randomUUID());
+			student = entityManager.merge(student);
+			entityManager.getTransaction().commit();
+		} catch (Exception e) {
+			entityManager.getTransaction().rollback();
+			throw e;
+		}
+		return student;
+	}
+
+	public void listStudent() {
+		try {
+			entityManager.getTransaction().begin();
+			TypedQuery<Student> query = entityManager.createQuery("SELECT s FROM Student s",Student.class);
+			List<Student> Students = query.getResultList();
+			System.out.println("There are " + Students.size() + " rows in the table");
+			for (Student student : Students) {
+				String sName = student.getStudentName();
+				UUID sId = student.getStudentId();
+				System.out.println(sName + " has StudentID " + sId);
+			}
+			entityManager.getTransaction().commit();
+		} catch (Exception e) {
+			entityManager.getTransaction().rollback();
+			throw e;
+		}
+	}
+
+	public void updateStudent(Long id, String studentName) {
+		try {
+			entityManager.getTransaction().begin();
+			Student student = (Student) entityManager.find(Student.class, id);
+			student.setStudentName(studentName);
+			student.setStudentId(UUID.randomUUID());
+			entityManager.getTransaction().commit();
+		} catch (Exception e) {
+			entityManager.getTransaction().rollback();
+			throw e;
+		}
+	}
+
+	public void deleteStudent(Long id) {
+		try {
+			entityManager.getTransaction().begin();
+			Student student = (Student) entityManager.find(Student.class, id);
+			entityManager.remove(student);
+			entityManager.getTransaction().commit();
+		} catch (Exception e) {
+			entityManager.getTransaction().rollback();
+			throw e;
+		}
+	}
+}
+{% endhighlight %}
+
+Hit the `Run` button in Eclipse, and watch it go!
+
+{% highlight txt %}
+[EL Info]: 2016-01-04 15:23:07.697--ServerSession(1597655940)--EclipseLink, version: Eclipse Persistence Services - 2.6.1.v20150916-55dc7c3
+[EL Info]: connection: 2016-01-04 15:23:07.758--Not able to detect platform for vendor name [EnterpriseDB99.4.1.3]. Defaulting to [org.eclipse.persistence.platform.database.DatabasePlatform]. The database dialect used may not match with the database you are using. Please explicitly provide a platform using property "eclipselink.target-database".
+[EL Info]: connection: 2016-01-04 15:23:07.833--ServerSession(1597655940)--/file:/root/workspace/JPA2Example/bin/_test login successful
+After insertion 
+There are 2 rows in the table
+George Washington has StudentID 9d5b55d4-d71e-4e5d-9953-808faa39c717
+Thomas Jefferson has StudentID 83dcbd9b-d6f6-4631-b8ca-d98c5b13ffdc
+After modification 
+There are 2 rows in the table
+George Washington has StudentID 62e5ef57-031e-4f7b-8ece-1f79d888b4e2
+Thomas Jefferson has StudentID 86e93775-bac4-47f6-889c-87dff0a3eff0
+After deletion 
+There are 1 rows in the table
+George Washington has StudentID 62e5ef57-031e-4f7b-8ece-1f79d888b4e2
+{% endhighlight %}
+
+And to verify in the database:
+
+{% highlight txt %}
+edb=# select * from student;
+    studentname    |  id  |              studentid               
+-------------------+------+--------------------------------------
+ George Washington | 3551 | 62e5ef57-031e-4f7b-8ece-1f79d888b4e2
+(1 row)
+{% endhighlight %}
+
+That’s it!  Hope it works for you as well!
+
