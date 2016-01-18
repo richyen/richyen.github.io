@@ -14,10 +14,10 @@ If you’d like to know more about NUMA and NUMA v. spinlock contention, you can
 
 - NUMA
   - [Wikipedia](https://en.wikipedia.org/wiki/Non-uniform_memory_access)
-  - [ACM Article](http://queue.acm.org/detail.cfm?id=2513149)
+  - [ACM](http://queue.acm.org/detail.cfm?id=2513149)
 - Cache Line Contention
-  - [HP Presentation](https://events.linuxfoundation.org/sites/events/files/slides/linuxcon-2014-locking-final.pdf)
-  - [Exadat Artcle](http://exadat.co.uk/2015/03/21/diagnosing-spinlock-problems-by-doing-the-math/)
+  - [Linux Foundation](https://events.linuxfoundation.org/sites/events/files/slides/linuxcon-2014-locking-final.pdf)
+  - [EXADAT](http://exadat.co.uk/2015/03/21/diagnosing-spinlock-problems-by-doing-the-math/)
 
 Thankfully, newer [Linux kernels (v. 3.8 and later, which translates to RHEL/CentOS 7 and Ubuntu 13.04) have improved NUMA policies baked in](https://en.wikipedia.org/wiki/Non-uniform_memory_access#Software_support), which mitigates the effects of this contention.  With one particular customer, the upgrade from RHEL 6 to RHEL 7 made the problem disappear without any additional tweaking.
 
@@ -38,14 +38,14 @@ An example of what you might see in CPU activity would be the following:
 ![CPU Graph](https://s3.amazonaws.com/f.cl.ly/items/3z2B3I0n3E2D0K3a340H/kronos3.png?v=f371aa8c)
 
 # Identifying the Culprit
-The way to tell for certain if your NUMA nodes are causing headache for Postgres is by simply removing NUMA handling from your server.  If you limit your processing to one CPU socket, you won’t be passing data between memory regions, and therefore you won’t experience cache line contention.  How to do this?  By creating a cpuset and running your Postgres server on that one cpuset.  That way, you’re running on one NUMA node, and all your data is confined to one memory region.  If you do this, and you see your performance reach desired/previous values, you can be certain that cache line contention is causing the performance hit, and it’s time to upgrade the OS or look for other ways to get around the NUMA v. spinlocks issue.
+The way to tell for certain if your NUMA nodes are causing headaches for Postgres is by simply removing NUMA handling from your server.  If you limit your processing to one CPU socket, you won’t be passing data between memory regions, and therefore you won’t experience cache line contention.  How can you do this?  By creating a cpuset and running your Postgres server on that one cpuset.  That way, you’re running on one NUMA node, and all your data is confined to one memory region.  If you do this, and you see your performance reach desired/previous values, you can be certain that cache line contention is causing the performance hit, and it’s time to upgrade the OS or look for other ways to get around the NUMA v. spinlocks issue.
 
 ![The Plan](https://s3.amazonaws.com/f.cl.ly/items/1m0C0O301G1y2n2u0h2N/skitch.png?v=5e5a6d8a)
 
 _The Plan_
 
 # Setting up a cpuset
-The process by which you set up a single cpuset on a Linux system varies by distribution, but the following steps work for the general case:
+The process by which you set up a single cpuset on a Linux system varies by distribution, but the following steps work for the general case, and applies to both Community Postgres and Postgres Plus Advanced Server:
 
 {% highlight bash %}
 # to see where the cpuset "home" directory is:
@@ -85,6 +85,6 @@ If this doesn’t work for you, you’ll need to do a bit of googling around for
 Once you’ve set up the cpuset, and verified Postgres is running and you can log in, start up your application(s) and/or tests, and see if performance improves.  Watch the CPU graph to make sure that only a fraction of your processors are actually being utilized.  If you are able to achieve better performance, you can be certain that NUMA cache line contention is the cause for your earlier performance degradation.
 
 # The Fix
-From here, you will want to look into ensuring that your [Linux kernel is up-to-date with the latest kernel-level NUMA-handling features](https://en.wikipedia.org/wiki/Non-uniform_memory_access#Software_support).  If upgrading your OS is not an option, you may want to look into other ways around the issue, which include creating a separate cpuset for each Postgres cluster/instance, limiting your real database connections to a safe level with a connection pooler (like pgbouncer), consider other hardware, or spread your data and workload across different servers.
+From here, you will want to ensure that your [Linux kernel is up-to-date with the latest kernel-level NUMA-handling features](https://en.wikipedia.org/wiki/Non-uniform_memory_access#Software_support).  If upgrading your OS is not an option, you may want to look into other ways around the issue, which include creating a separate cpuset for each Postgres cluster/instance, limiting your real database connections to a safe level with a connection pooler (like pgbouncer), consider other hardware, or spread your data and workload across different servers. If you are stuck, feel free to contact EnterpriseDB Support, and we’d be happy to help.
 
 # Happy Trails!
