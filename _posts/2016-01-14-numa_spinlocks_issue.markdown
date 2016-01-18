@@ -2,7 +2,8 @@
 layout: post
 title:  "Overcoming Cache Line Contention in Large NUMA Systems"
 date:   2016-01-14 13:01:09 -0800
-categories: NUMA CPU tuning cpuset linux Postgres postgres performance scaling
+tags: NUMA CPU tuning cpuset linux PostgreSQL postgres performance scaling
+categories: postgres
 ---
 # Introduction
 

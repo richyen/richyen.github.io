@@ -2,7 +2,8 @@
 layout: post
 title:  "Using UUIDs with JPA"
 date:   2016-01-05 13:23:09 -0800
-categories: Java JDBC JPA EclipseLink UUID Datatypes PostgreSQL
+tags: Java JDBC JPA EclipseLink UUID Datatypes PostgreSQL
+categories: postgres
 ---
 
 # Introduction
