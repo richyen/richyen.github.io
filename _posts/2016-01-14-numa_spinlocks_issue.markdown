@@ -91,6 +91,7 @@ Once you’ve set up the cpuset and verified Postgres is running, and you can lo
 
 # The Mystery Solved
 From here, you will want to ensure that your [Linux kernel is up-to-date with the latest kernel-level NUMA-handling features](https://en.wikipedia.org/wiki/Non-uniform_memory_access#Software_support).  If upgrading your OS is not an option, you may want to look into other ways around the issue, such as:
+
 - Create a separate cpuset for each Postgres cluster/instance;
 - Limit your real database connections to a safe level with a connection pooler (like pgbouncer);
 - Consider other hardware;
