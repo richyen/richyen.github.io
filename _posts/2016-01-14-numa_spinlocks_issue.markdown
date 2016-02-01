@@ -5,6 +5,8 @@ date:   2016-01-14 13:01:09 -0800
 tags: NUMA CPU tuning cpuset linux PostgreSQL postgres performance scaling
 categories: postgres
 ---
+*Note:* This was originally posted on the [EnterpriseDB blog](http://www.enterprisedb.com/postgres-plus-edb-blog/richard-yen/solving-cache-line-contention-large-numa-systems)
+
 # Introduction
 
 EnterpriseDB® (EDB™) works with a significant number of global brands that deploy EDB Postgres to support complex business-critical workloads. Some of these brands experienced a dramatic drop-offs in performance as they dialed-up the concurrency in their load tests.  This was a mystery for these brands, and we wanted to help them solve it.  
