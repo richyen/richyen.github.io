@@ -3,7 +3,6 @@ layout: post
 title:  "Using Custom Types with Procedures in Postgres Plus Advanced Server"
 date:   2016-01-29 17:03:09 -0800
 tags: Java JDBC Types Procedures Oracle Postgresql
-published: false
 categories: postgres
 ---
 
