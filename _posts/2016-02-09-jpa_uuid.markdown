@@ -1,15 +1,17 @@
 ---
 layout: post
-title:  "Using UUIDs with JPA"
-date:   2016-01-05 13:23:09 -0800
+title:  "4 Steps to Using UUIDs with JPA in PostgreSQL"
+date:   2016-02-09 13:23:09 -0800
 tags: Java JDBC JPA EclipseLink UUID Datatypes PostgreSQL
 categories: postgres
 ---
 
-# Introduction
-Postgres supports a variety of data types that allows data architects to store their data consistently, enforce constraints through validation, maximize performance, and maximize space.  Recently, I was asked to show someone how to store a UUID (Universally Unique Identifier) into Postgres by way of JPA (Java Persistence API).
+*Note:* This was originally posted on the [EnterpriseDB blog](http://www.enterprisedb.com/postgres-plus-edb-blog/richard-yen/4-steps-using-uuids-jpa-postgresql)
 
-Now, you may ask, “Why care so much about storing UUIDs as a UUID type in Postgres?  Wouldn’t it be simpler to store your UUIDs as TEXT or VARCHAR types?”  Well, yes, but keep in mind that the UUID type is constrained to 16 bytes, whereas the TEXT type will be more than double the size:
+# Introduction
+Postgres supports a variety of data types that allow data architects to store their data consistently, enforce constraints through validation, maximize performance, and maximize space.  Recently, I was asked to show someone how to store a UUID (Universally Unique Identifier) into Postgres by way of JPA (Java Persistence API).
+
+Now, you may ask, “Why should I care so much about storing UUIDs as a UUID type in Postgres?  Wouldn’t it be simpler to store  UUIDs as TEXT or VARCHAR types?”  Well, yes, that may be true. But keep in mind that the UUID type is constrained to 16 bytes, whereas the TEXT type will be more than double the size:
 
 {% highlight text %}
 select 
@@ -23,7 +25,7 @@ select
 
 Not only that, the UUID type has built-in validation to ensure that you have the correct 8-4-4-4-12 formatting.
 
-The problem here is that when using JPA it’s not trivial to manipulate UUIDs, as your Entity definitions require strict mapping of data types.  If you try to insert into a UUID column using a java.util.UUID, you’ll get an error saying “ERROR: column "studentid" is of type uuid but expression is of type bytea.” To circumvent this, many people cut corners by simply defining their UUID columns as TEXT, and just use Java String objects to get the job done.   However, as I mentioned above, those who do this will miss out on validation and compactness features that come with using the UUID data type.
+The challenge, however, is that when using JPA, it’s not trivial to manipulate UUIDs, as your Entity definitions require strict mapping of data types.  If you try to insert into a UUID column using a java.util.UUID, you’ll get an error saying: “ERROR: column "studentid" is of type uuid but expression is of type bytea.” To circumvent this, many people cut corners by simply defining their UUID columns as TEXT, and just use Java String objects to get the job done.  However, as mentioned above, those who do this will miss out on validation and compactness features that come with using the UUID data type.
 
 # An Example
 Fortunately, getting your JPA-based program working with UUIDs is not terribly hard.  The EclipseLink implementation of JPA makes it fairly simple.  Suppose you had the following table:
@@ -97,7 +99,7 @@ public class Student implements java.io.Serializable {
 {% endhighlight %}
 
 ## Step 2: The Converter
-As you can see in the yellow highlighted text, some Java Converters are used.  You’ll need to write up a simple Converter to implement the use of UUIDs (we’ll call it `UUIDConverter.java`):
+As you can see in the yellow highlighted text, some Java Converters are used.  You’ll need to write up a simple Converter to implement the use of UUIDs (we’ll call it UUIDConverter.java):
 
 {% highlight java %}
 package com.test.jpa;
@@ -147,7 +149,7 @@ public class UUIDConverter implements Converter {
 {% endhighlight %}
 
 ## Step 3: The Entity Manager
-After this, you’ll need to create an Entity Manager, if you don’t have one already (we’ll call it `EntityManagerUtil.java`):
+After this, you’ll need to create an Entity Manager if you don’t have one already (we’ll call it `EntityManagerUtil.java`):
 
 {% highlight java %}
 package com.test.jpa;
@@ -300,4 +302,3 @@ edb=# select * from student;
 {% endhighlight %}
 
 That’s it!  Hope it works for you as well!
-
