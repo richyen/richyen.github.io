@@ -99,7 +99,7 @@ public class Student implements java.io.Serializable {
 {% endhighlight %}
 
 ## Step 2: The Converter
-As you can see in the yellow highlighted text, some Java Converters are used.  You’ll need to write up a simple Converter to implement the use of UUIDs (we’ll call it UUIDConverter.java):
+As you can see, some Java Converters are used.  You’ll need to write up a simple Converter to implement the use of UUIDs (we’ll call it UUIDConverter.java):
 
 {% highlight java %}
 package com.test.jpa;
