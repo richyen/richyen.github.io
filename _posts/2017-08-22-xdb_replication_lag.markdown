@@ -40,7 +40,7 @@ Then, we add it to the publication (in this case, I'm creating a new publication
 java -jar ${XDB_HOME}/bin/edb-repcli.jar -createpub xdbtest -repsvrfile ${XDB_HOME}/etc/xdb_repsvrfile.conf -pubdbid 1 -reptype T -tables public.xdb_lag_test -repgrouptype M -standbyconflictresolution 1:E
 {% endhighlight %}
 
-After we verify that replication is working in both directions, create the xdb_lag_history table, trigger and function on the MDN:
+After we verify that replication is working in both directions, create the `xdb_lag_history` table, trigger and function on the MDN:
 {% highlight text %}
 CREATE TABLE xdb_lag_history
 (
