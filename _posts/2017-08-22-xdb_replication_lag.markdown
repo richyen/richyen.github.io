@@ -2,8 +2,8 @@
 layout: post
 title:  "Monitoring Replication Lag with EDB Replication Server"
 date:   2017-08-22 16:28:09 -0800
-tags: xdb replication edb enterprisedb lag monitoring
-categories: postgres
+tags: xdb replication edb enterprisedb lag monitoring postgres
+categories: enterprisedb
 ---
 # Introduction
 EDB Replication Server empowers DBAs with high-performance Multi-Master Replication (MMR) with the help of Postgres' Logical Decoding framework.  While performance is a signifiance improvement from the xDB 5.x trigger-based replication architecture, DBAs and sysadmins still seek to monitor and track replication lag.  There are a number of ways to do this, and we'll go over them.

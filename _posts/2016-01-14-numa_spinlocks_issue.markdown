@@ -5,7 +5,6 @@ date:   2016-01-14 13:01:09 -0800
 tags: NUMA CPU tuning cpuset linux PostgreSQL postgres performance scaling
 categories: postgres
 ---
-*Note:* This was originally posted on the [EnterpriseDB blog](http://www.enterprisedb.com/postgres-plus-edb-blog/richard-yen/solving-cache-line-contention-large-numa-systems)
 
 # Introduction
 
@@ -13,7 +12,7 @@ EnterpriseDB® (EDB™) works with a significant number of global brands that de
 
 A clue to this mystery: Prior to using new hardware, tests could handle upwards of 500 concurrent sessions with EDB Postgres. However, once these brands began using their shiny new hardware, they couldn’t get past 300 users (and one couldn’t get past 140) without grinding to a halt.
 
-EDB began our investigation and ultimately determined the cause for these lock-ups was due to a phenomenon that can be described as “Cache Line Contention in Large NUMA Systems.” That’s a mouthful, so we’ve shortened it to “NUMA vs. spinlock contention.” Simply put, when processes want to access particular memory segments, they use spinlocks (don’t go looking in pg_locks for this!), and wait for the OS scheduler to give them access to memory (and potentially move it between NUMA nodes). Without getting into all the minute details, we found that NUMA vs. spinlock contention typically occurs on OLTP workloads that use enough memory to span multiple NUMA memory segments, but where the most active set of data is confined to one memory segment.  What it amounts to is a lot of waiting around, moving data between memory regions, and the appearance of the CPU doing a lot of work.
+We began our investigation and ultimately determined the cause for these lock-ups was due to a phenomenon that can be described as “Cache Line Contention in Large NUMA Systems.” That’s a mouthful, so we’ve shortened it to “NUMA vs. spinlock contention.” Simply put, when processes want to access particular memory segments, they use spinlocks (don’t go looking in pg_locks for this!), and wait for the OS scheduler to give them access to memory (and potentially move it between NUMA nodes). Without getting into all the minute details, we found that NUMA vs. spinlock contention typically occurs on OLTP workloads that use enough memory to span multiple NUMA memory segments, but where the most active set of data is confined to one memory segment.  What it amounts to is a lot of waiting around, moving data between memory regions, and the appearance of the CPU doing a lot of work.
 
 If you’d like to know more about NUMA, and NUMA vs. spinlock contention, you can check out the following resources. (Note: SQL Server also experiences this phenomenon):
 
@@ -99,4 +98,4 @@ From here, you will want to ensure that your [Linux kernel is up-to-date with th
 - Consider other hardware;
 - Spread your data and workload across different servers.
 
-Want to learn more? Feel free to contact EnterpriseDB Support, and we’d be happy to help.
+*Note:* This was originally posted on the [EnterpriseDB blog](http://www.enterprisedb.com/postgres-plus-edb-blog/richard-yen/solving-cache-line-contention-large-numa-systems)

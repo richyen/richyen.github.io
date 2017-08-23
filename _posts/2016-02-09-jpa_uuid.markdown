@@ -6,8 +6,6 @@ tags: Java JDBC JPA EclipseLink UUID Datatypes PostgreSQL
 categories: postgres
 ---
 
-*Note:* This was originally posted on the [EnterpriseDB blog](http://www.enterprisedb.com/postgres-plus-edb-blog/richard-yen/4-steps-using-uuids-jpa-postgresql)
-
 # Introduction
 Postgres supports a variety of data types that allow data architects to store their data consistently, enforce constraints through validation, maximize performance, and maximize space.  Recently, I was asked to show someone how to store a UUID (Universally Unique Identifier) into Postgres by way of JPA (Java Persistence API).
 
@@ -302,3 +300,5 @@ edb=# select * from student;
 {% endhighlight %}
 
 That’s it!  Hope it works for you as well!
+
+*Note:* This was originally posted on the [EnterpriseDB blog](http://www.enterprisedb.com/postgres-plus-edb-blog/richard-yen/4-steps-using-uuids-jpa-postgresql)

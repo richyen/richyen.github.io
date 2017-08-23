@@ -2,7 +2,7 @@
 layout: post
 title:  "Using auth_method=hba in PgBouncer"
 date:   2017-08-18 13:23:09 -0800
-tags: pgbouncer authentication hba
+tags: pgbouncer authentication hba postgres PostgreSQL
 categories: pgbouncer postgres
 ---
 
