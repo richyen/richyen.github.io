@@ -3,6 +3,7 @@ layout: post
 title:  "What tables will be vacuumed at the next autovacuum cycle?"
 date:   2017-08-25 13:01:09 -0800
 tags: autovacuum vacuum maintenance PostgreSQL postgres
+comments: true
 categories: postgres
 ---
 

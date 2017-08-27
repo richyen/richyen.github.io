@@ -3,6 +3,7 @@ layout: post
 title:  "Monitoring Replication Lag with EDB Replication Server"
 date:   2017-08-22 16:28:09 -0800
 tags: xdb replication edb enterprisedb lag monitoring postgres
+comments: true
 categories: enterprisedb
 ---
 # Introduction

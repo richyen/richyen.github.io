@@ -3,6 +3,7 @@ layout: post
 title:  "Anatomy of a VACUUM"
 date:   2017-08-24 14:01:09 -0800
 tags: vacuum maintenance linux PostgreSQL postgres performance scaling vmstat
+comments: true
 categories: postgres
 ---
 
