@@ -66,3 +66,6 @@ To see if you’re on Phase 3, you’ll see a lot of write activity in `vmstat`.
 
 # Conclusion
 That’s about it, in a nutshell.  Note that this is all that happens for a regular `VACUUM`.  A `VACUUM ANALYZE` will perform an `ANALYZE` after each table is done getting `VACUUM`ed.  Also, for a `VACUUM FULL`, the behavior is slightly different, since the indexes get discarded, and the entire file gets re-written in a new location.  Perhaps those details may be explained in a future post.
+
+# References
+1. [PostgreSQL Internals Through Pictures](https://momjian.us/main/writings/pgsql/internalpics.pdf) - Presentation on PostgreSQL internals by [Bruce Momjian](https://momjian.us)
