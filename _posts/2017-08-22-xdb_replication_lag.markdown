@@ -99,4 +99,4 @@ edb=# select * from xdb_lag_history;
 (1 row)
 {% endhighlight %}
 
-In this system, there was a 4.36sec lag in propagating the `INSERT` statement.  Now, we can write to all the non-MDNs and see how much time it takes for data to replicate into the MDN.  From here, other instrumentation can be to track time lag in EDB Replication Server.
+In this system, there was a 4.36sec lag in propagating the `INSERT` statement.  Now, we can write to all the non-MDNs and see how much time it takes for data to replicate into the MDN.  From here, other instrumentation can be made to track time lag in EDB Replication Server.
