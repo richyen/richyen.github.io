@@ -23,10 +23,10 @@ For most people, they're not interested in the number of bytes or rows a replica
  
 One way to measure time lag in an EDB Replication Server cluster involves a few tricks, and the setup looks like this:
 
-. A table dedicated to testing replication performance (we'll call it `xdb_lag_test`)
-. A table tabulating the time lag history (we'll call it `xdb_lag_history`)
-. A function returning a trigger (named `update_xdb_lag_history`)
-. A trigger on the `xdb_lag_test` table
+- A table dedicated to testing replication performance (we'll call it `xdb_lag_test`)
+- A table tabulating the time lag history (we'll call it `xdb_lag_history`)
+- A function returning a trigger (named `update_xdb_lag_history`)
+- A trigger on the `xdb_lag_test` table
 
 First, we create the `xdb_lag_test` table:
 {% highlight text %}
