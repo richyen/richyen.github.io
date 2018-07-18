@@ -19,7 +19,7 @@ Setting up LDAP seems intimidating, as there's a whole suite of commands and opt
 docker run --name ldap-service --hostname ldap-service --detach osixia/openldap:1.1.11
 {% endhighlight %}
 
-Out of the box, LDAP works.  All you need to do is create an LDAP user, create a counterpart in Postgres with `CREATE ROLE`, and configure `pg_hba.conf` using the [simple bind (not bind+search) method ](https://www.postgresql.org/docs/current/static/auth-methods.html), accordingly:
+Out of the box, LDAP works.  All you need to do is create an LDAP user, create a counterpart in Postgres with `CREATE ROLE`, and configure `pg_hba.conf` using the [simple bind (not bind+search) method](https://www.postgresql.org/docs/current/static/auth-methods.html), accordingly:
 
 {% highlight text %}
 host   all         all      0.0.0.0/0  ldap ldapserver=ldap-service ldapprefix="cn=" ldapsuffix=", dc=example, dc=org" ldapport=389
