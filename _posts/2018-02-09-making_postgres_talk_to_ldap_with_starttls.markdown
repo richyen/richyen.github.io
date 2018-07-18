@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Making Postgres Talk to LDAP (with StartTLS)"
-date:   2018-02-09 17:00:00 -0800
+date:   2018-02-09 13:00:00 -0800
 tags: PostgreSQL postgres LDAP authentication SSL StartTLS TLS
 comments: true
 categories: postgres
