@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Zombies?  Dealing with a Case of Stuck TransactionIDs"
+title:  "Zombies!!  Dealing with a Case of Stuck TransactionIDs"
 date:   2019-01-08 13:45:00 -0800
 tags: replication xid wraparound postgres PostgreSQL
 comments: true
