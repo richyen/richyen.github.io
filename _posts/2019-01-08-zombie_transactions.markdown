@@ -47,3 +47,5 @@ The solution for this scenario is in a seemingly unlikely place: `pg_replication
 
 # Conclusion
 Clean up after yourself.  My wife tells me that all the time.  I tell it to my kids as well.  Do it with your database too.  Vacuum, remove unused indexes, close out your transactions, and remove your unused replication slots.  It's good for your server, it's good for the environment, and it's good for your health.  Have a Happy 2019!
+
+*Special thanks to Andres Freund for helping with the analysis and determining the solution*
