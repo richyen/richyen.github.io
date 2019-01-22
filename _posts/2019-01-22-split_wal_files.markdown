@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "The Curious Case of Split WAL Files"
-date:   2019-01-15 12:00:00 -0800
+date:   2019-01-22 12:00:00 -0800
 tags: replication walsender walreceiver postgres PostgreSQL
 comments: true
 categories: replication postgres
