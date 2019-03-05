@@ -67,3 +67,5 @@ Network hiccups that disrupt the `walreceiver` connections ultimately invalidate
 
 # Conclusion
 There are a handful of other ways query cancellations can arise, even with `hot_standby_feedback=on`, but they are more rare.  Taking a peek at `pg_stat_database_conflicts` will help with understanding the cause of the canceled queries, and therefore aid in implementing the correct mitigating path.  Ultimately, `hot_standby_feedback` is just one of many ways to deal with query cancellations on a standby, and users should understand that such cancellations are necessasry at times in order to maintain a consistent and reliable clone.  Any attempts to give higher priority to standby-side queries, whether it's through `hot_standby_feedback` or any other means, comes at the cost of slowing down replication (albeit sometimes miniscule) between primary and standby.
+
+*Special thanks to Andres Freund for assistance and review*
