@@ -39,7 +39,7 @@ success
 It takes a little extra work to make the Docker container behave in a way that Postgres can talk to it with `StartTLS`.  The first step is create your own Certificate Authority, then an SSL certificate and sign it.  Working with SSL/TLS is also intimidating (with all the ciphers, acronyms, versions, and such), and I won't go into that here, but I was surprised to find that [it wasn't terribly hard to get the 3 things that I needed](https://jamielinux.com/docs/openssl-certificate-authority/create-the-root-pair.html).  After that, you need to create your LDAP Docker container by including the `--env LDAP_TLS_VERIFY_CLIENT=try` flag in the `docker run` statement, as mentioned in [Issue #105](https://github.com/osixia/docker-openldap/issues/105#issuecomment-279673189).  Finally, you'll need to copy your CA cert, SSL cert, and SSL key into `/container/service/slapd/assets/`.  Once those are all in place (you may need to do a `docker restart ldap-service`), verify that `LDAP + StartTLS` is working properly by doing a simple `ldapsearch` from the client side (i.e., wherever you're running Postgres):
 
 {% highlight bash %}
-[root@pg96 /]# ldapsearch -H "ldap://ldap-service" ldap-service -D "cn=admin,dc=example,dc=org" -b "cn=richardyen,dc=example,dc=org" -Z -LLL -w admin cn
+[root@pg96 /]# ldapsearch -H "ldap://ldap-service" -D "cn=admin,dc=example,dc=org" -b "cn=richardyen,dc=example,dc=org" -Z -LLL -w admin cn
 dn: cn=richardyen,dc=example,dc=org
 cn: richardyen
 {% endhighlight %}
