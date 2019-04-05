@@ -75,3 +75,31 @@ $ docker logs ldap-service 2>&1 | tail
 
 # Conclusion
 Getting PostgreSQL working with LDAP and with SSL/TLS can be intimidating, but it doesn't have to be.  With a bit of poking around on Google, and finding the right resources, what seemed to be a herculian task actually became quite doable.  One important lesson I learned through these support cases, and in setting up this environment, was that it's very important to verify from the client side with `ldapsearch` or `ldapwhoami` with the `-Z` flag to make sure LDAP with encryption was properly set up.  Some people tested only on the LDAP/server side, not on the Postgres side, and lost many hours trying to wrangle with `pg_hba.conf` and ultimately blaming Postgres for being buggy in its implementation of LDAP authentication, when in reality it was LDAP that was misconfigured.
+
+
+# __Updates:__ *2019-04-05*
+I've received some requests for how to set this up with `bind+search`, so I'm providing some `pg_hba.conf` examples below, one with use of `ldapurl` and one with `ldapbinddn`:
+```
+host   all         all      0.0.0.0/0  ldap ldapurl="ldap://ldap-service/dc=example,dc=org?uid?sub" ldaptls=1 ldapbinddn="cn=admin,dc=example,dc=org" ldapbindpasswd=admin
+host   all         all      0.0.0.0/0  ldap ldapserver=ldap-service ldaptls=1 ldapport=389 ldapbasedn="dc=example,dc=org" ldapbinddn="cn=admin,dc=example,dc=org" ldapsearchattribute=uid ldapbindpasswd=admin
+```
+
+Note that with the `bind+search` method, you either need to configure your LDAP server to allow anonymous binds, or you will need to include a `ldapbindpasswd` along with your `ldapbinddn`, which poses security concerns.  In my experience, the simple-bind method is more secure, as there isn't the extra connection step that includes printing a password into `pg_hba.conf` in plaintext.
+
+Also, for those who are having trouble creating certificates, [Sunil Narain has composed a similar article](https://postgresrocks.enterprisedb.com/t5/Postgres-Gems/Setting-up-Postgres-LDAP-authentication-with-TLS/ba-p/3342) that uses `certtool` to create certificates, and also shows how to get rid of the pesky warning about self-signed certificates.
+
+Finally, [PostgreSQL v11](https://www.postgresql.org/about/news/1894/) has been out for a while now, and it works with `ldaps` URLs:
+
+```
+-sh-4.2$ cat ${PGDATA}/pg_hba.conf
+host   all         all      0.0.0.0/0  ldap ldapurl="ldaps://ldap-service/dc=example,dc=org?uid?sub" ldapbinddn="cn=admin,dc=example,dc=org" ldapbindpasswd=admin
+-sh-4.2$ pg_ctl -D /tmp/data reload
+server signaled
+-sh-4.2$ psql -h 127.0.0.1 -c "select 'success', version()"
+Password for user postgres:
+ ?column? |                                                 version
+----------+---------------------------------------------------------------------------------------------------------
+ success  | PostgreSQL 11.2 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 4.8.5 20150623 (Red Hat 4.8.5-36), 64-bit
+(1 row)
+
+```
