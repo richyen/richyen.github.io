@@ -4,7 +4,6 @@ title:  "The Challenges of Setting max_connections and Why You Should Use a Conn
 date:   2019-06-25 13:01:09 -0800
 tags: PostgreSQL postgres performance scaling pooling pgbouncer max_connections
 comments: true
-published: false
 categories: postgres
 ---
 
@@ -30,10 +29,6 @@ This interestingly matched all three adages -- "around 300-500," "no more than 7
 
 ![concurrency graph](https://d1wuojemv4s7aw.cloudfront.net/items/3F1y3A1t3u0T3z3k3H11/transaction%20throughput_latency_v_concurrency_2.png)
 
-Seems like the results were generally reproducible.  Recalling a [statement in the documentation](https://www.postgresql.org/docs/current/pgbench.html) that *`-c` values in excess of `-s` will undoubtedly result in lots of transactions blocked waiting for other transactions*, I decided to re-build the instance with `--scale=2000` and try again:
-
-![concurrency graph]()
-
 So it seems that for this server, the sweet spot was really somewhere between 300-400 connections, and `max_connections` should not be set much higher than that, lest we risk forfeiting performance.
 
 # But what if I need more connections?
@@ -41,11 +36,17 @@ Clearly, having `max_connections = 400` is not going to allow a high-traffic app
 
 To demonstrate the improved scalability when employing a connection pooler, I set up an `m4.large` EC2 instance similar to [Alvaro Hernandez's concurrent-connection test](https://speakerdeck.com/ongres/postgresql-configuration-for-humans?slide=17) because 1) *I wanted to use a benchmark that wasn't just my own numbers*, and 2) *I wanted to save some money*.  I was able to get a similar graph as his:
 
-![concurrency graph - no pooler](https://d1wuojemv4s7aw.cloudfront.net/items/0H3l0Z0o2z413I0D150B/transaction%20throughput_latency_v_concurrency_nopool.png)
+![concurrency graph - no pooler](https://cl.ly/7574d980aed2/transaction_throughput_latency_v_concurrency_nopooler.png)
 
-I then configured pgbouncer with `max_client_conn = 10000`, `max_db_connections = 300`, `pool_mode = transaction`, and ran the same pgbench test again, using the pgbouncer port instead (`-h <hostname> -p6432 -U postgres --client=<num_clients> --progress=30 --time=3600 --jobs=2 bouncer`):
+However, this graph was created without the `-C/--connect` flag (establish new connection for each transaction) in pgbench, likely because Alvaro wasn't trying to illustrate the advantages of using a connection pooler.  Therefore, I re-ran the same test, but with `-C` this time:
 
-![concurrency graph - with pooler]()
+![concurrency graph - no pooler](https://cl.ly/57876b8bfb8c/transaction_throughput_latency_v_concurrency_nopooler_C.png)
+
+As we can see, because each transaction had to connect and disconnect, throughput decreased, illustrating the cost of establishing connections.  I then configured pgbouncer with `max_client_conn = 10000`, `max_db_connections = 300`, `pool_mode = transaction`, and ran the same pgbench tests again, using the pgbouncer port instead (`-h <hostname> -p6432 -U postgres --client=<num_clients> --progress=30 --time=3600 --jobs=2 -C bouncer`):
+
+![concurrency graph - with pooler](https://cl.ly/068d0a83e4d2/transaction_throughput_latency_v_concurrency_w_pooler_C.png)
+
+It becomes apparent that while pgbouncer maintains open connections to the database and shares them with the incoming clients, the connection overhead is offset, thereby increasing the throughput.  Note that we'll never achieve Alvaro's graph, even with a pooler, because there will always be __some__ overhead in establishing the connection (i.e., the client needs to tell the OS to allocate some space and open up a socket to actually connect to pgbouncer).
 
 # Conclusion
-As we can see, `max_connections` should be determined with some on-site benchmark testing, with some custom scripts (note that all these tests used the built-in pgbench transaction that consists of 3 `SELECT`s, 1 `UPDATE`, and 1 `INSERT` -- a closer-to-reality test can be created by providing a custom `.sql` file and using the `-f/--file` flag).  Once set, any remaining requirements for capacity ought to be met with any combination of replication or a connection pooler.  A connection pooler is a vital part of any high-throughput database system, as it elimiates connection overhead and reserves larger portions of memory and CPU time to a smaller set of database connection, preventing unwanted resource contention and performace degradation.
+As we can see, `max_connections` should be determined with some on-site benchmark testing, with some custom scripts (note that all these tests used the built-in pgbench transaction that consists of 3 `SELECT`s, 1 `UPDATE`, and 1 `INSERT` -- a closer-to-reality test can be created by providing a custom `.sql` file and using the `-f/--file` flag).  Basically, do your homework -- benchmark and find out the maximum concurrency that still gives good performance, round up to the nearest hundred (to give you some headroom), and set `max_connections` accordingly.  Once set, any remaining requirements for concurrency ought to be met with any combination of replication or a connection pooler.  A connection pooler is a vital part of any high-throughput database system, as it elimiates connection overhead and reserves larger portions of memory and CPU time to a smaller set of database connection, preventing unwanted resource contention and performace degradation.
