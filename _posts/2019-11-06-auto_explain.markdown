@@ -43,7 +43,11 @@ auto_explain.log_min_duration = 0
 auto_explain.log_analyze = on
 ```
 
-The result:
+For those new to `auto_explain`, adding it to the list of libraries in `shared_preload_libraries` will enable `auto_explain` when the database starts up.  If you want to simply enable it for your current `psql` session, you can simply call `LOAD 'auto_explain';` and go from there.
+
+The `auto_explain.log_min_duration = 0` will generate an `EXPLAIN` plan for all queries that take more than 0ms to run (basically, *all* queries will generate an `EXPLAIN` plan).  `auto_explain.log_analyze = on` will tell `auto_explain` to record the runtime statistics, including actual rows found, actual time spent on each execution node, etc.  Another good setting to turn on (but wasn't turned on here) is `auto_explain.log_buffers = on`, which prints out memory usage statistics -- good for seeing if an execution node pulled data out of cache or had to go to disk.  Other tunables can be found [in the PostgreSQL documentation](https://www.postgresql.org/docs/current/auto-explain.html).
+
+With `auto_explain` on, we found:
 ```
 ####-##-## ##:##:## EST [#####]: [###-#] [xid=######] user=###,db=###,appEnterpriseDB JDBC Driver,client=### LOG:  00000: duration: 889.074 ms  plan:
     Query Text: UPDATE customer_table SET col1 = $1, col2 = $2, col3 = $3 WHERE col4 = $4 AND col5 = $5
