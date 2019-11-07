@@ -59,7 +59,7 @@ With `auto_explain` on, we found:
             Rows Removed by Filter: 3336167
 ```
 
-At first glance, it didn't seem like there was anything wrong with this `EXPLAIN ANALYZE` output (except for the performance), but after getting some additional eyes and thoughts, it became clear that the four casts to `double precision` was the cause.  If we tinker with `pgbench` a little, we can see:
+At first glance, it didn't seem like there was anything wrong with this output (except for the performance), but after getting some additional eyes and thoughts, it became clear that the four casts to `double precision` was the cause.  If we tinker with `pgbench` a little, we can see:
 ```
 postgres=# EXPLAIN ANALYZE SELECT filler FROM pgbench_accounts WHERE aid = 1 AND bid = 1;
                                                                QUERY PLAN                                                                
