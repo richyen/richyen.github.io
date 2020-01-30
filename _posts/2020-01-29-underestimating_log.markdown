@@ -16,7 +16,7 @@ I recently did some work with a customer who had some strange behavior happening
 * The average number of parameters included in `log_line_prefix` is `0.93`
 
 # A bit of history
-Wait a minute.  On average less than one parameter in `log_line_prefix` for any `postgresql.conf`?  How could that be?  Bear in mind that prior to v. 10, the default for `log_line_prefix` was simply `''`.  That's right--nothing.  It was up to the DBA to set a value.  Seeing that this wasn't very useful, [Christoph Berg submitted a patch](https://github.com/postgres/postgres/commit/7d3235ba42f8d5fc70c58e242702cc5e2e3549a6) to set the default to `'%m [%p] '`.  While it's not the best setting, it's a significant improvement to nothing at all.  What this *does* tell me though, is that many users out there using v. 9.x have not bothered to change `log_line_prefix` at all, making this one of the most neglected important features PostgreSQL has to offer.
+Wait a minute.  On average less than one parameter in `log_line_prefix` for any `postgresql.conf`?  How could that be?  Bear in mind that prior to v. 10, the default for `log_line_prefix` was simply `''`.  That's right--nothing.  It was up to the DBA to set a value (as is often the case with the default conf which, understandably, caters to the lowest common denominator).  Seeing that this wasn't very useful, [Christoph Berg submitted a patch](https://github.com/postgres/postgres/commit/7d3235ba42f8d5fc70c58e242702cc5e2e3549a6) to set the default to `'%m [%p] '`.  While it's not the best setting, it's a significant improvement to nothing at all.  What this *does* tell me though, is that many users out there using v. 9.x have not bothered to change `log_line_prefix` at all, making this one of the most neglected important features PostgreSQL has to offer.
 
 _EDIT_: Some of these conf files were from EDB Postgres Advanced Server (EPAS) deployments.  EPAS has been shipping with `log_line_prefix = '%t '` by default since 2012, so those 38% of users who log only a timestamp are users who don't change `log_line_prefix`, possibly making the statistic more like "43% of users don't bother to change `log_line_prefix`."
 
@@ -56,7 +56,7 @@ While setting `log_line_prefix` is very important, from experience I also think 
 * `log_temp_files` -- helps identify work_mem shortages, I/O spikes
 * `auto_explain` -- not a parameter, but a useful extension
 
-These parameters will help with diagnosis and in some cases, when coupled with `pgbadger` or [`pganalyze`](https://pganalyze.com/), can assist with capacity planning.
+These parameters will help with diagnosis and in some cases, when coupled with `pgbadger`, [`pganalyze`](https://pganalyze.com/), or [`tail_n_mail`](https://bucardo.org/tail_n_mail/), can assist with capacity planning.
 
 # How much is too much?
 Some may complain that logging too many things will lead to I/O overhead and actually increase time for diagnosis.  DBAs don't want to be drinking from a firehose at 3AM!  While this may be true, some steps can be taken to mitigate these effects:
@@ -68,4 +68,4 @@ Some may complain that logging too many things will lead to I/O overhead and act
 Getting familiar with commandline tools like `grep`, `sed`, and `awk` are also very important, so that you can quickly filter and zoom in on the suspected users, transactions, and processes.
 
 # Conclusion
-While a company's bottom line is often correlated with efficiency, performance, and throughput, there's no excuse for inadequate logging. Good logging saves valuable time, and time is money.  PostgreSQL's logging is very powerful and informative, even without third-party log processing tools like Datadog and Splunk.  It's the first and most powerful resource (along with looking at `pg_stat_acitivity`) that DBAs have when it comes to figuring out what caused problems in your application stack, and the tell-all snitch when it comes to investigating a database crash.  Don't neglect it!
+While a company's bottom line is often correlated with efficiency, performance, and throughput, there's no excuse for inadequate logging. Good logging saves valuable time, and time is money.  PostgreSQL's logging is very powerful and informative, even without third-party log processing tools like Datadog and Splunk.  It's the first and most powerful resource (along with looking at `pg_stat_activity`) that DBAs have when it comes to figuring out what caused problems in your application stack, and the tell-all snitch when it comes to investigating a database crash.  Don't neglect it!
