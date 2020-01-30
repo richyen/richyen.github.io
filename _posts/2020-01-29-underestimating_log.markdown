@@ -23,7 +23,7 @@ _EDIT_: Some of these conf files were from EDB Postgres Advanced Server (EPAS) d
 # More important than some may think
 Adequate logging opens up the door to many possibilities.  With `log_connections` and `log_disconnections`, you can see when a session began and ended.  With `log_min_duration_statement` (along with `auto_explain`), you can identify any poorly-running queries.  With `log_autovacuum_min_duration`, you can see what an autovacuum job did, how much space it freed up, and perhaps tip you off to any stray/idle transactions preventing you from vacuuming more.  Same goes with `log_temp_files`, which can tip you off to any `work_mem` adjustments you may need.  However, in order of any of this to be possible, `log_line_prefix` needs to be adequately set.
 
-`log_line_prefix` can log many important facets of a session or query.  There are 17 parameters that can be logged and while not all of them need to be included in your `postgresql.conf`, here are some of my favorites:
+`log_line_prefix` can log many important facets of a session or query.  There are [17 parameters that can be logged](https://www.postgresql.org/docs/current/runtime-config-logging.html#GUC-LOG-LINE-PREFIX) and while not all of them need to be included in your `postgresql.conf`, here are some of my favorites:
 
 * `%a` - _Application Name_ - Allows quick reference and filtering
 * `%u` - _User Name_ - Allows filter by user name
