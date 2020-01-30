@@ -8,7 +8,7 @@ categories: postgres
 ---
 
 # Introduction
-I recently did some work with a customer who had some strange behavior happening in his database.  When I asked for his logs, I found that each line had a message, and just one timestamp prefixed to it.  In other words, he had `log_line_prefix = '%t '`.  This made it hard for me to figure out who did what, especially as his database was serving many clients and applications.  It got me thinking, and I scoured through our other clients' `postgresql.conf` files that had been shared with me over the years, and in ~130 conf files, I found the following:
+I recently did some work with a customer who had some strange behavior happening in his database.  When I asked for his logs, I found that each line had a message, and just one timestamp prefixed to it.  In other words, he had `log_line_prefix = '%t '`.  This made it hard for me to figure out who did what, especially as his database was serving many clients and applications.  It got me thinking, and I scoured through our other clients' `postgresql.conf` files that had been shared with me over the years, and in ~140 conf files, I found the following:
 
 * 5% of users don’t change `log_line_prefix`
 * 7% of users don’t log a timestamp (but they might be using syslog, which would include its own timestamp)
@@ -17,6 +17,8 @@ I recently did some work with a customer who had some strange behavior happening
 
 # A bit of history
 Wait a minute.  On average less than one parameter in `log_line_prefix` for any `postgresql.conf`?  How could that be?  Bear in mind that prior to v. 10, the default for `log_line_prefix` was simply `''`.  That's right--nothing.  It was up to the DBA to set a value.  Seeing that this wasn't very useful, [Christoph Berg submitted a patch](https://github.com/postgres/postgres/commit/7d3235ba42f8d5fc70c58e242702cc5e2e3549a6) to set the default to `'%m [%p] '`.  While it's not the best setting, it's a significant improvement to nothing at all.  What this *does* tell me though, is that many users out there using v. 9.x have not bothered to change `log_line_prefix` at all, making this one of the most neglected important features PostgreSQL has to offer.
+
+_EDIT_: Some of these conf files were from EDB Postgres Advanced Server (EPAS) deployments.  EPAS has been shipping with `log_line_prefix = '%t '` by default since 2012, so those 38% of users who log only a timestamp are users who don't change `log_line_prefix`, possibly making the statistic more like "43% of users don't bother to change `log_line_prefix`."
 
 # More important than some may think
 Adequate logging opens up the door to many possibilities.  With `log_connections` and `log_disconnections`, you can see when a session began and ended.  With `log_min_duration_statement` (along with `auto_explain`), you can identify any poorly-running queries.  With `log_autovacuum_min_duration`, you can see what an autovacuum job did, how much space it freed up, and perhaps tip you off to any stray/idle transactions preventing you from vacuuming more.  Same goes with `log_temp_files`, which can tip you off to any `work_mem` adjustments you may need.  However, in order of any of this to be possible, `log_line_prefix` needs to be adequately set.
