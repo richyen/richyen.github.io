@@ -1,8 +1,8 @@
 ---
 layout: post
-title:  "The Most Neglected Postgres Feature"
+title:  "The Most-Neglected Postgres Feature"
 date:   2020-01-29 13:00:09 -0800
-tags: PostgreSQL postgres performance logging monitoring
+tags: PostgreSQL postgres logging monitoring
 comments: true
 categories: postgres
 ---
