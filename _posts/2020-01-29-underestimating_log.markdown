@@ -2,7 +2,7 @@
 layout: post
 title:  "The Most-Neglected Postgres Feature"
 date:   2020-01-29 13:00:09 -0800
-tags: PostgreSQL postgres logging monitoring
+tags: PostgreSQL postgres logging monitoring configuration
 comments: true
 categories: postgres
 ---
@@ -33,13 +33,14 @@ Adequate logging opens up the door to many possibilities.  With `log_connections
 * `%l` - _Session/Process Log Line_ - Helps identify what a session has done
 * `%v`/`%x` - _Transaction IDs_ - Helps identify what queries a transaction ran
 
-These, along with a timestamp (`%m`) make it possible for a DBA or developer to quickly filter on specific paramters to identify issues and collect historical data.  Moreover, log analytics tools like [`pgbadger`](https://github.com/darold/pgbadger) work best with a more comprehensive `log_line_prefix`, so something like `log_line_prefix = '%m [%p:%l] (%v): host=%r,db=%d,user=%u,app=%a,client=%h '` is what I like to use.  With this, I can do the following:
+These, along with a timestamp (`%m` or `%t`) make it possible for a DBA or developer to quickly filter on specific paramters to identify issues and collect historical data.  Moreover, log analytics tools like [`pgbadger`](https://github.com/darold/pgbadger) work best with a more comprehensive `log_line_prefix`, so something like `log_line_prefix = '%m [%p:%l] (%v): host=%r,db=%d,user=%u,app=%a,client=%h '` is what I like to use.  With this, I can do the following:
 
 * `grep` on `[<pid>]` to find lines pertaining to a specific active backend to see what it's done so far (cross referencing with `SELECT * FROM pg_stat_acitivity`)
 * `grep` on a PID to see what it did before the database crashed
-* Filter out apps with a specific application name (like `autovacuum` -- because I know for a fact that `autovacuum` didn't cause the problem I'm _currently_ trying to investigate)
+* Filter out lines with a specific application name (like `autovacuum` -- because I know for a fact that `autovacuum` didn't cause the problem I'm _currently_ trying to investigate)
 * Filter out a specific database name because in my multi-tenant setup, I don't need to worry about that database
 * Focus on a specific transaction ID to help my developer know at which step in his code a query is failing
+* And more ...
 
 Without setting `log_line_prefix`, all you have is a bunch of timestamps and a bunch of queries or error messages, not knowing how it relates with the set of users and applications that might be accessing the database.  Setting `log_line_prefix` will lead to quicker diagnosis, faster incident resolution, happier users, and rested DBAs.
 
