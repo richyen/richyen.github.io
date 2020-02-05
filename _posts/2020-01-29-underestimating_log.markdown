@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "The Most-Neglected Postgres Feature"
+title:  "The Most-Neglected Postgres Feature?"
 date:   2020-01-29 13:00:09 -0800
 tags: PostgreSQL postgres logging monitoring configuration
 comments: true
@@ -16,7 +16,7 @@ I recently did some work with a customer who had some strange behavior happening
 * The average number of parameters included in `log_line_prefix` is `0.93`
 
 # A bit of history
-Wait a minute.  On average less than one parameter in `log_line_prefix` for any `postgresql.conf`?  How could that be?  Bear in mind that prior to v. 10, the default for `log_line_prefix` was simply `''`.  That's right--nothing.  It was up to the DBA to set a value (as is often the case with the default conf which, understandably, caters to the lowest common denominator).  Seeing that this wasn't very useful, [Christoph Berg submitted a patch](https://github.com/postgres/postgres/commit/7d3235ba42f8d5fc70c58e242702cc5e2e3549a6) to set the default to `'%m [%p] '`.  While it's not the best setting, it's a significant improvement to nothing at all.  What this *does* tell me though, is that many users out there using v. 9.x have not bothered to change `log_line_prefix` at all, making this one of the most neglected important features PostgreSQL has to offer.
+Wait a minute.  On average less than one parameter in `log_line_prefix` for any `postgresql.conf`?  How could that be?  Bear in mind that prior to v. 10, the default for `log_line_prefix` was simply `''`.  That's right--nothing.  It was up to the DBA to set a value (as is often the case with the default conf which, understandably, caters to the lowest common denominator).  Seeing that this wasn't very useful, [Christoph Berg submitted a patch](https://github.com/postgres/postgres/commit/7d3235ba42f8d5fc70c58e242702cc5e2e3549a6) to set the default to `'%m [%p] '`.  While it's not the best setting, it's a significant improvement to nothing at all.  What this *does* tell me though, is that many users out there using v. 9.x have not bothered to change `log_line_prefix` at all, making this perhaps one of the most neglected important features PostgreSQL has to offer.
 
 _EDIT_: Some of these conf files were from EDB Postgres Advanced Server (EPAS) deployments.  EPAS has been shipping with `log_line_prefix = '%t '` by default since 2012, so those 38% of users who log only a timestamp are users who don't change `log_line_prefix`, possibly making the statistic more like "43% of users don't bother to change `log_line_prefix`."
 
