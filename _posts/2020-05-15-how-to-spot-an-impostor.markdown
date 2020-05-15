@@ -35,7 +35,7 @@ The first column in `pg_hba.conf` indicates the method of connection, which can 
 
 One way to enforce SSL encryption for all TCP/IP-based sessions is by adding a `hostnossl all all all reject` line at the top of your `pg_hba.conf` file.  This will basically reject all non-SSL connections from all IP addresses, thereby enforcing that all non-local sessions to use SSL encryption.
 
-# Using Encrypted sessions
+# Using Encrypted Sessions
 By default, `psql` and most PostgreSQL clients will attempt to connect to PostgreSQL with an SSL connection, and if it encounters some resistance, it will fall back to a non-SSL connection.  The order can be reversed or altered by changing the [`sslmode` parameter](https://www.postgresql.org/docs/current/libpq-connect.html) when creating the connection.  The default value for `sslmode` is `prefer` which, as explained above, attempts SSL first, then attempts non-SSL.  Using a value like `require` will attempt only an SSL connection, and will not subsequently attempt with non-SSL -- it is up to the developer or deployer to set `sslmode` in accordance with the organization's requirements.
 
 To demonstrate, I have configured a server with a `hostnossl all all all reject` at the top of `pg_hba.conf`, and `hostssl all all all password` after it (note that the Linux environment variable `PGSSLMODE` is the way to set `sslmode` for the driver making the connection):
