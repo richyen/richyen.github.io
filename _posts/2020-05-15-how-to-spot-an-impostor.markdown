@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "How to Spot an Impostor: Working with PostgreSQL's SSL Modes"
+title:  "Overcoming Impostor Syndrome: Working with PostgreSQL's SSL Modes"
 date:   2020-05-15 13:00:09 -0800
 tags: PostgreSQL postgres ssl security
 comments: true
