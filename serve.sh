@@ -1,3 +1,4 @@
 #!/bin/bash
 
-docker run --volume="$PWD:/srv/jekyll" --publish-all -itd jekyll/minimal:$JEKYLL_VERSION jekyll serve
+export JEKYLL_VERSION=3.8
+docker run --rm --volume="$PWD:/srv/jekyll" --publish-all -it jekyll/minimal:$JEKYLL_VERSION jekyll serve
