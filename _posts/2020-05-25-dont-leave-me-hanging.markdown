@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Don't Leave Me Hanging: Another Type of Transaction to Monitor"
-date:   2020-05-22 13:00:09 -0800
+date:   2020-05-25 13:00:09 -0800
 tags: PostgreSQL postgres prepared_transactions transactions pg_prepared_xacts twophase
 comments: true
 categories: postgres
