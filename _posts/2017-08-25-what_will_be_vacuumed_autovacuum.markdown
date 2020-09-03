@@ -25,3 +25,6 @@ SELECT c.relname
 {% endhighlight %}
 
 Enjoy!
+
+# UPDATE 2020-09-02
+Note that autovacuum will vacuum/analyze **all** relations in the list that it built up before napping again.  Therefore, if a table becomes eligible for autovacuum while autovacuum is processing a set of relations, that table will not be autovacuumed until the currently-running round of autovacuum finishes and wakes up after sleeping for `autovacuum_naptime`.
