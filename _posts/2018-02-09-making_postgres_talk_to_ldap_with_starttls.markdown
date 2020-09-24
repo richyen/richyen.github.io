@@ -110,7 +110,7 @@ Here's an exmple using the `simple-bind` method:
 ```
 host   all         all      0.0.0.0/0  ldap ldapserver="ldap-service" ldapscheme="ldaps" ldapprefix="cn=" ldapsuffix=", dc=example, dc=org"
 ```
-Note that since `ldapurl` is not used in the `simple-bind` method, `ldapscheme` must be set instead.  Do not set `ldaptls` as that would be redundant, and may even lead to an authentication failure.
+Note that since `ldapurl` is not used in the `simple-bind` method, `ldapscheme` must be set instead.  Do not set `ldaptls`, as that would be redundant, and may even lead to an authentication failure.
 
 Here's the output from the LDAP server:
 ```
@@ -123,7 +123,7 @@ Here's the output from the LDAP server:
 5f6d1e01 conn=1060 fd=18 closed
 ```
 
-No more `STARTLS`!
+No more `STARTTLS`!
 
 And here are a couple examples using the `bind+search` method:
 ```
