@@ -103,3 +103,53 @@ Password for user postgres:
 (1 row)
 
 ```
+# __Updates:__ *2020-09-24*
+I've received some requests for how to set up `pg_hba.conf` with `ldaps://` syntax.
+
+Here's an exmple using the `simple-bind` method:
+```
+host   all         all      0.0.0.0/0  ldap ldapserver="ldap-service" ldapscheme="ldaps" ldapprefix="cn=" ldapsuffix=", dc=example, dc=org"
+```
+Note that since `ldapurl` is not used in the `simple-bind` method, `ldapscheme` must be set instead.  Do not set `ldaptls` as that would be redundant, and may even lead to an authentication failure.
+
+Here's the output from the LDAP server:
+```
+5f6d1e01 conn=1060 fd=18 ACCEPT from IP=192.168.96.4:43772 (IP=0.0.0.0:636)
+5f6d1e01 conn=1060 fd=18 TLS established tls_ssf=256 ssf=256
+5f6d1e01 conn=1060 op=0 BIND dn="cn=enterprisedb,dc=example,dc=org" method=128
+5f6d1e01 conn=1060 op=0 BIND dn="cn=enterprisedb,dc=example,dc=org" mech=SIMPLE ssf=0
+5f6d1e01 conn=1060 op=0 RESULT tag=97 err=0 text=
+5f6d1e01 conn=1060 op=1 UNBIND
+5f6d1e01 conn=1060 fd=18 closed
+```
+
+No more `STARTLS`!
+
+And here are a couple examples using the `bind+search` method:
+```
+host   all         all      0.0.0.0/0  ldap ldapserver=ldap-service ldapscheme=ldaps ldapbasedn="dc=example,dc=org" ldapbinddn="cn=admin,dc=example,dc=org" ldapsearchattribute=uid ldapbindpasswd=admin
+host   all         all      0.0.0.0/0  ldap ldapurl="ldaps://ldap-service/dc=example,dc=org?uid?sub" ldapbinddn="cn=admin,dc=example,dc=org" ldapbindpasswd=admin
+```
+
+Note that I took out `ldapport`, as port 389 is not the TLS port.
+
+And notice no more `STARTTLS` in the LDAP server log:
+```
+5f6d2015 conn=1065 fd=18 ACCEPT from IP=192.168.96.4:43788 (IP=0.0.0.0:636)
+5f6d2015 conn=1065 fd=18 TLS established tls_ssf=256 ssf=256
+5f6d2015 conn=1065 op=0 BIND dn="cn=admin,dc=example,dc=org" method=128
+5f6d2015 conn=1065 op=0 BIND dn="cn=admin,dc=example,dc=org" mech=SIMPLE ssf=0
+5f6d2015 conn=1065 op=0 RESULT tag=97 err=0 text=
+5f6d2015 conn=1065 op=1 SRCH base="dc=example,dc=org" scope=2 deref=0 filter="(uid=enterprisedb)"
+5f6d2015 conn=1065 op=1 SRCH attr=1.1
+5f6d2015 conn=1065 op=1 SEARCH RESULT tag=101 err=0 nentries=1 text=
+5f6d2015 conn=1065 op=2 UNBIND
+5f6d2015 conn=1065 fd=18 closed
+5f6d2015 conn=1066 fd=18 ACCEPT from IP=192.168.96.4:43790 (IP=0.0.0.0:636)
+5f6d2015 conn=1066 fd=18 TLS established tls_ssf=256 ssf=256
+5f6d2015 conn=1066 op=0 BIND dn="cn=enterprisedb,dc=example,dc=org" method=128
+5f6d2015 conn=1066 op=0 BIND dn="cn=enterprisedb,dc=example,dc=org" mech=SIMPLE ssf=0
+5f6d2015 conn=1066 op=0 RESULT tag=97 err=0 text=
+5f6d2015 conn=1066 op=1 UNBIND
+5f6d2015 conn=1066 fd=18 closed
+```
