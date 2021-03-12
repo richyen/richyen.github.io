@@ -40,14 +40,14 @@ If you can answer “yes” to all of these questions, there’s a good chance y
 
 An example of what you might see in CPU activity would be something like the following:
 
-![CPU Graph](https://s3.amazonaws.com/f.cl.ly/items/2s471A443K3g2X2g3c1H/kronos.png?v=63ec9505)
-![CPU Graph](https://s3.amazonaws.com/f.cl.ly/items/0y180s191m0j3L353G3b/kronos2.png?v=a273a6c1)
-![CPU Graph](https://s3.amazonaws.com/f.cl.ly/items/3z2B3I0n3E2D0K3a340H/kronos3.png?v=f371aa8c)
+![CPU Graph](https://raw.githubusercontent.com/richyen/richyen.github.io/gh-pages/img/numa1.png)
+![CPU Graph](https://raw.githubusercontent.com/richyen/richyen.github.io/gh-pages/img/numa2.png)
+![CPU Graph](https://raw.githubusercontent.com/richyen/richyen.github.io/gh-pages/img/numa3.png)
 
 # Identifying the Culprit
 The way to tell definitively if your NUMA nodes are causing headaches is to simply remove NUMA handling from your server. If you limit your processing to one CPU socket, you won’t be passing data between memory regions, and therefore you won’t experience cache line contention.  How can you do this?  By creating a cpuset and running your Postgres server on that one cpuset.  That way, you’re running on one NUMA node, and all your data is confined to one memory region.  If you do this, and you see your performance reach desired/previous values, you can be certain that cache line contention is causing the performance hit -- and it’s time to upgrade the OS or look for other ways to get around the NUMA v. spinlocks issue.
 
-![The Plan](https://s3.amazonaws.com/f.cl.ly/items/1m0C0O301G1y2n2u0h2N/skitch.png?v=5e5a6d8a)
+![The Plan](https://raw.githubusercontent.com/richyen/richyen.github.io/gh-pages/img/numa4.png)
 
 _The Plan_
 
