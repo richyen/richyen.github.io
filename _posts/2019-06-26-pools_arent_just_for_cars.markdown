@@ -18,16 +18,16 @@ There's not a lot of scientific data out there to help DBAs set `max_connections
 # Testing the tribal knowledge
 Without a very clean way to calculate `max_connections`, I decided at least to test the validity of the tribal knowledge out there.  Is it really the case that it should be "a few hundred," "no more than 500," and "definitely no more than 1000?"  For that, I set up an AWS `g3.8xlarge` EC2 instance (32 CPU, 244GB RAM, 1TB of 3K IOPS SSD) to generously imitate some DB servers I've seen out there, and initialized a `pgbench` instance with `--scale=1000`.  I also set up 10 smaller EC2 instances, to act as application servers, and on each of these, I ran a `pgbench` test for one hour, incrementing `--client=NUM` by one each hour (so they would aggregately create `100`,`200`,`300` ... `5000` connections for each hour's test).  `autovacuum` was turned off to prevent any unnecesary interference and skew of the results (though I vacuumed between each test), and the `postgresql.conf` was otherwise tuned to some [generally-accepted values](https://www.pgconfig.org/#/tuning).  I set `max_connections` to 12k, figuring that my tests would use no more than the 5000 it would ask for in the final test.  I walked away while the tests ran, and the results came back looking like this:
 
-![concurrency graph - full](https://d1wuojemv4s7aw.cloudfront.net/items/1j3v1c3U0m3O0p0K1z0U/transaction%20throughput_latency_v_concurrency_1.png)
+![concurrency graph - full](https://raw.githubusercontent.com/richyen/richyen.github.io/gh-pages/img/maxconn_graph1.png)
 
 Below is a more zoomed-in view of the above graph:
-![concurrency graph - zoomed to 1000 connections](https://d1wuojemv4s7aw.cloudfront.net/items/350Q453N0Q3X2o3z0q0K/transaction%20throughput_latency_v_concurrency_1z.png)
+![concurrency graph - zoomed to 1000 connections](https://raw.githubusercontent.com/richyen/richyen.github.io/gh-pages/img/maxconn_graph2.png)
 
 So for this server that I've set up to be similar to some enterprise-grade machines, the optimal performance was when there were 300-500 concurrent connections.  After 700, performance dropped precipitously (both in terms of transactions-per-second and latency).  Anything above 1000 connections performed poorly, along with an ever-increasing latency.  Towards the end, the latency starts to be non-linear -- this was probably because I didn't configure the EC2 instance to allow for more than the default ~25M open filehandles, as I saw several `could not fork new process for connection: Resource temporarily unavailable` messages after 3700 concurrent connections.
 
 This interestingly matched all three adages -- "a few hundred," "no more than 500", and "definitely no more than 1000."  It seemed too good to be true, so I ran the tests again, only going up to 1800.  The results:
 
-![concurrency graph](https://d1wuojemv4s7aw.cloudfront.net/items/3F1y3A1t3u0T3z3k3H11/transaction%20throughput_latency_v_concurrency_2.png)
+![concurrency graph](https://raw.githubusercontent.com/richyen/richyen.github.io/gh-pages/img/maxconn_graph3.png)
 
 So it seems that for this server, the sweet spot was really somewhere between 300-400 connections, and `max_connections` should not be set much higher than that, lest we risk forfeiting performance.
 
@@ -36,15 +36,15 @@ Clearly, having `max_connections = 400` is not going to allow a high-traffic app
 
 To demonstrate the improved scalability when employing a connection pooler, I set up an `m4.large` EC2 instance similar to [Alvaro Hernandez's concurrent-connection test](https://speakerdeck.com/ongres/postgresql-configuration-for-humans?slide=17) because 1) *I wanted to use a benchmark that wasn't just my own numbers*, and 2) *I wanted to save some money*.  I was able to get a similar graph as his:
 
-![concurrency graph - no pooler](https://cl.ly/7574d980aed2/transaction_throughput_latency_v_concurrency_nopooler.png)
+![concurrency graph - no pooler](https://raw.githubusercontent.com/richyen/richyen.github.io/gh-pages/img/maxconn_graph4.png)
 
 However, this graph was created without the `-C/--connect` flag (establish new connection for each transaction) in pgbench, likely because Alvaro wasn't trying to illustrate the advantages of using a connection pooler.  Therefore, I re-ran the same test, but with `-C` this time:
 
-![concurrency graph - no pooler](https://cl.ly/57876b8bfb8c/transaction_throughput_latency_v_concurrency_nopooler_C.png)
+![concurrency graph - no pooler](https://raw.githubusercontent.com/richyen/richyen.github.io/gh-pages/img/maxconn_graph5.png)
 
 As we can see, because each transaction had to connect and disconnect, throughput decreased, illustrating the cost of establishing connections.  I then configured pgbouncer with `max_client_conn = 10000`, `max_db_connections = 300`, `pool_mode = transaction`, and ran the same pgbench tests again, using the pgbouncer port instead (`-h <hostname> -p6432 -U postgres --client=<num_clients> --progress=30 --time=3600 --jobs=2 -C bouncer`):
 
-![concurrency graph - with pooler](https://cl.ly/068d0a83e4d2/transaction_throughput_latency_v_concurrency_w_pooler_C.png)
+![concurrency graph - with pooler](https://raw.githubusercontent.com/richyen/richyen.github.io/gh-pages/img/maxconn_graph6.png)
 
 It becomes apparent that while pgbouncer maintains open connections to the database and shares them with the incoming clients, the connection overhead is offset, thereby increasing the throughput.  Note that we'll never achieve Alvaro's graph, even with a pooler, because there will always be __some__ overhead in establishing the connection (i.e., the client needs to tell the OS to allocate some space and open up a socket to actually connect to pgbouncer).
 
