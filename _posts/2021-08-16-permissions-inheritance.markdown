@@ -15,7 +15,7 @@ To view inherited permissions, we leveraged PostgreSQL's `has_table_privilege()`
 
 ```
 SELECT r.rolname AS user_name,
-       c.relname::regclass AS table_name,
+       c.oid::regclass AS table_name,
        p.perm AS privilege_type
   FROM pg_class c CROSS JOIN
        pg_roles r CROSS JOIN
