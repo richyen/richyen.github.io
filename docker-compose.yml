@@ -1,8 +1,9 @@
 version: '3'
 services:
   jekyll:
-    image: jekyll/minimal:3.8
+    image: jekyll/jekyll:latest
     container_name: blog
+    privileged: true
     volumes:
       - .:/srv/jekyll
     ports:
