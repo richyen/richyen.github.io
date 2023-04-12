@@ -19,3 +19,6 @@ linkedin_username: richyen
 
 # Build settings
 markdown: kramdown
+
+plugins:
+  - jemoji
