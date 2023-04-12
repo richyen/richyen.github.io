@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Making a Database Polyglot with PostgreSQL Foreign Data Wrappers"
+title:  "Making a Data Polyglot with PostgreSQL Foreign Data Wrappers"
 date:   2023-04-12 13:00:00 -0800
 tags: PostgreSQL postgres fdw foreign_data_wrappers multicorn
 comments: true
