@@ -1,4 +1,3 @@
-version: '3'
 services:
   jekyll:
     image: jekyll/jekyll:latest
@@ -8,4 +7,4 @@ services:
       - .:/srv/jekyll
     ports:
       - "4000:4000"
-    command: jekyll serve
+    command: sh -c "gem install webrick && jekyll serve"
