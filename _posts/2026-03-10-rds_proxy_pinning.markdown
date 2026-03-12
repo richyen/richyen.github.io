@@ -53,7 +53,7 @@ def connect(conn):
     conn.await_(self.setup_asyncpg_jsonb_codec(conn))
 ```
 
-This registers optimized JSON and JSONB codecs.
+This registers optimized JSON and JSONB codecs (the client's application deals with a lot of JSONB data).
 
 ---
 
