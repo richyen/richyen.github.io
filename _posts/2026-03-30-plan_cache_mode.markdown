@@ -8,20 +8,20 @@ categories: postgres
 
 # Introduction
 
-Most PostgreSQL users use prepared statements as a way to boost performance and prevent SQL injection. Fewer people know that PostgreSQL silently changes the execution plan for prepared statements after exactly five executions.
+Most PostgreSQL users use prepared statements as a way to boost performance and prevent SQL injection. Fewer people know that the query planner silently changes the execution plan for prepared statements after exactly five executions.
 
-This behavior often surprises engineers because a query plan can suddenly shift—sometimes dramatically, even though the query itself hasn’t changed. The reason lies in PostgreSQL’s handling of custom plans vs generic plans, controlled by the parameter `plan_cache_mode`.
+This behavior often surprises engineers because a query plan can suddenly shift—sometimes dramatically, even though the query itself hasn’t changed. The reason lies in the planner’s handling of custom plans vs generic plans, controlled by the parameter `plan_cache_mode`.
 
 ---
 
 # Custom Plans vs Generic Plans
 
-When a prepared statement is executed with parameters, PostgreSQL has two choices:
+When a prepared statement is executed with parameters, the planner has two choices:
 
 1.  **Custom Plan:** Generated using the actual parameter values. It is potentially optimal for that specific execution but requires planning overhead every time.
 2.  **Generic Plan:** Planned once without knowing specific parameter values. It is reused for all subsequent executions to save planning overhead.
 
-By default, PostgreSQL runs in `plan_cache_mode = auto`. In this mode, PostgreSQL uses custom plans for the first five executions. On the `sixth` execution, it compares the average cost of those custom plans against the estimated cost of a generic plan. If the generic plan is deemed "cheaper" or equal, PostgreSQL switches to it permanently for that session.
+By default, `plan_cache_mode` is set to `auto`. In this mode, the planner uses custom plans for the first five executions. On the `sixth` execution, it compares the average cost of those custom plans against the estimated cost of a generic plan. If the generic plan is deemed "cheaper" or equal, the planner switches to it permanently for that session.
 
 ---
 
@@ -88,7 +88,7 @@ The cost numbers reveal the selection of Index Scan over Seq Scan: 19,322 < 28,9
 
 # The Automatic Switch in Action
 
-After resetting `plan_cache_mode` back to `auto`, we execute the statement five times using the common value `'Y'`. Each run generates a custom Seq Scan plan at cost ~28,910. After five such executions, PostgreSQL compares `Average custom plan cost: ~28,910` v. `Generic plan cost: ~19,322`
+After resetting `plan_cache_mode` back to `auto`, we execute the statement five times using the common value `'Y'`. Each run generates a custom Seq Scan plan at cost ~28,910. After five such executions, the planner compares `Average custom plan cost: ~28,910` v. `Generic plan cost: ~19,322`
 
 Since 19,322 ≤ 28,910, the generic plan is chosen from execution 6 onward.
 
@@ -174,7 +174,7 @@ choose_custom_plan(CachedPlanSource *plansource)
 
 # Final Thoughts
 
-PostgreSQL’s automatic plan caching is usually a hero, saving CPU cycles. But when you have highly skewed data or volatile temporary objects, that "6th run switch" can negatively affect client/application performance.
+The query planner's automatic plan caching is usually a hero, saving CPU cycles. But when you have highly skewed data or volatile temporary objects, that "6th run switch" can negatively affect client/application performance.
 
 If you see unexplained regressions in a prepared statement, you may want to check to see if it is being called more than 5 times, or try `SET plan_cache_mode = force_custom_plan` as a troubleshooting step.  This forces a fresh custom plan on every execution, guaranteeing the planner always sees the actual parameter value and can choose the right strategy.
 
