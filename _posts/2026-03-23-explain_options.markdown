@@ -45,7 +45,7 @@ Especially for index scans, this information confirms whether a query that *shou
 
 ---
 
-# MEMORY: Memory used by the 
+# MEMORY: Memory Used by the Query
 
 This is a new feature introduced in version 18.  It is different from `BUFFERS` in the sense that it tracks the amount of memory consumed during the query planning phase, not execution.  Output would appear at the bottom of `EXPLAIN` output like this:
 
@@ -76,7 +76,7 @@ In the example above, `records` are the number of WAL records generated, `fpi` r
 
 ---
 
-# SETTINGS: Remind me what my environment looked like?
+# SETTINGS: Remind Me What My Environment Looked Like?
 
 Sometimes a query behaves differently on two servers even though the SQL is identical.  Or you may have modified some parameters locally before running the query (i.e., `work_mem`).  To properly understand how a query is affected by any differences in environment, the `SETTINGS` option can sometimes be useful:
 
