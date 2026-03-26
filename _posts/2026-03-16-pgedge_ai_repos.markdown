@@ -3,6 +3,7 @@ layout: post
 title: "Learning AI Fast with pgEdge's RAG"
 date: 2026-03-16 00:00:00 -0800
 tags: postgres ai rag vector pgvector ollama docker mcp
+comments: true
 categories: postgres
 ---
 
