@@ -15,15 +15,15 @@ Every so often, I talk to someone working in data analytics who wants access to 
 
 Typical solutions that we might encounter as we give people a little bit of access to production data:
 
-## 1. Query the primary
+### 1. Query the primary
 
 This is generally a bad idea, since you don't want users getting access to the production prirmary, lest they make some mistakes or do something to lock up tables that prevent customers from using your apps.  Even with a read-only user, large data analytics queries could cause unwanted interference that negatively affect your uptime.  This is almost certainly not the way to go.
 
-## 2. Query a streaming replica
+### 2. Query a streaming replica
 
 This is better, but doing this is not free.  Long-running queries can create replay lag, vacuum conflicts can cancel queries, and I/O contention can affect the primary upstream.  It's safer since users are forced to be read-only, but that still carries risk.
 
-## 3. Nightly snapshots / rebuilds
+### 3. Nightly snapshots / rebuilds
 
 Having time-based snapshots and rebuilds are the most common form of getting data out to analysts.  ETL queries run at night (or some other specified regular interval) and provide the information needed to do the necessary work.  This works, but is another piece of software that produces somewhat stale data, depending on how much stale-ness can be tolerated.
 
