@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Understanding Bitmap Heap Scans in PostgreSQL"
-date:   2026-04-06 00:00:00 -0800
+date:   2026-04-26 00:00:00 -0800
 tags: PostgreSQL postgres performance query-planner indexing
 comments: true
 categories: postgres
