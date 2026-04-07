@@ -48,7 +48,7 @@ Log shipping isn’t just a legacy mode, but it’s part of the replication cont
 
 # Architecture Pattern: Introduce a WAL Hub
 
-Instead of thinking in terms or replication happening between a primary and a number of standbys, it may be useful to think about a cenral WAL archive host, even if it's an S3 bucket, so that many consumers can access data at any point in time.
+Instead of thinking in terms or replication happening between a primary and a number of standbys, it may be useful to think about a central WAL archive host, even if it's an S3 bucket, so that many consumers can access data at any point in time.
 
 These consumers can be analytics standbys, QA environments, or ad-hoc data sandboxes -- or whatever else you want to give a copy of near-realtime production data to, without risking replication backpressure or compromising network security.
 
