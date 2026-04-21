@@ -31,7 +31,7 @@ I'd relate this to aperture -- you can throw money at some fast glass, but you a
 
 ## Disk I/O
 
-Disk is where things go when memory isn’t enough, or when an access pattern requires it.  We see examples of this in , sequential scans, random index lookups, and temporary files from sorts or hashes.  Lowering `work_mem` might increase disk I/O due to sorts spilling to temp files, for example.  We can try to minimize disk I/O by adding indexes, increasing `work_mem`, or simply rewriting queries.
+Disk is where things go when memory isn’t enough, or when an access pattern requires it.  We see examples of this in sequential scans, random index lookups, and temporary files from sorts or hashes.  Lowering `work_mem` might increase disk I/O due to sorts spilling to temp files, for example.  We can try to minimize disk I/O by adding indexes, increasing `work_mem`, or simply rewriting queries.
 
 Another way we can try to affect disk I/O is to tinker with the costs, to encourage the query planner to choose one scan method over the other.  In any case, our attempts to balance disk I/O and memory usage can be pretty straightforward at first, but could become complicated at scale.  That's where partitioning and read-only replicas come in, but I'm beginning to digress...
 
@@ -74,7 +74,7 @@ Instead of asking, "What’s the optimal configuration?" it might be more useful
 - If I relieve pressure here, where does it move?  
 - How much can we tolerate that new pressure?
 
-Costs don’t disappear -- it just shifts -- and it's the DBA's job to help decision-makers decide where to shift it to.
+Costs don’t disappear -- they just shift -- and it's the DBA's job to help decision-makers decide where to shift it to.
 
 ---
 
