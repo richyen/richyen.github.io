@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "The Other Wraparound: MultiXact IDs"
+title:  "XID Wraparound's Equally-Evil Twin"
 date:   2026-05-18 00:00:00 -0600
 tags: PostgreSQL postgres vacuum multixact wraparound maintenance autovacuum
 comments: true
