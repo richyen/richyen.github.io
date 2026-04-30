@@ -30,7 +30,7 @@ Bitmap Heap Scan on orders
 -> Bitmap Index Scan on orders_customer_id_idx
 ```
 
-The important part is that the index lookup and heap access are separated -- this separation allows the Postgres to explain heap access costs and actuals more clearly.
+The important part is that the index lookup and heap access are separated -- this separation allows Postgres to explain heap access costs and actuals more clearly.
 
 ---
 
@@ -129,6 +129,6 @@ During the heap scan, the executor must then recheck all rows on that page.  In 
 
 # Final Thoughts
 
-Bitmap heap scans are one of the planner’s most practical optimization tools, as they allow the database to reduce random I/O, combine multiple indexes, handle medium-sized result sets efficiently.
+Bitmap heap scans are one of the planner's most practical optimization tools, as they allow the database to reduce random I/O, combine multiple indexes, and handle medium-sized result sets efficiently.
 
-While they may look complicated at first, the core idea is simple:Find matching rows first, then fetch heap pages efficiently.  What a great concept!
+While they may look complicated at first, the core idea is simple: Find matching rows first, then fetch heap pages efficiently.  What a great concept!

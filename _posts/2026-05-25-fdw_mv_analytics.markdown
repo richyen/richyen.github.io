@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Foreign Tables and Materialized Views: A Dynamic Duo"
-date: 2026-05-04 00:00:00 -0800
+date: 2026-05-25 00:00:00 -0800
 categories: postgres fdw analytics performance architecture
 comments: true
 categories: postgres
