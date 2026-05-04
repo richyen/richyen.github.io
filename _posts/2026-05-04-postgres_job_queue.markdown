@@ -149,6 +149,10 @@ The key advantages:
 
 The downside is that pgq is not as actively maintained as it once was, and it adds operational complexity (the ticker daemon, consumer registration, etc.).  But for teams already deep in the Postgres ecosystem, it's a battle-tested option.
 
+### PgQue
+
+Coincidentally, during the writing of this post, [Nikolay Samokhvalov has built PgQue](https://github.com/NikolayS/pgque), which is a derivative of pgq.  Like pgq, it sits inside Postgres, but ships as a single SQL file -- no C extension and no external daemon -- making it deployable on managed services like RDS, Aurora, Cloud SQL, AlloyDB, Supabase, and Neon.  Producers `INSERT` events into rotating event tables (recycled via `TRUNCATE` instead of row-by-row deletion), and consumers read batches by diffing two `pg_snapshot` values captured by a periodic ticker -- so the hot path contains zero `UPDATE`s, `DELETE`s, or `SELECT ... FOR UPDATE SKIP LOCKED`, and therefore produces no dead tuples on the event tables.  For a deeper dive into the algorithm, see [Christophe Pettus's writeup](https://thebuild.com/blog/2026/05/03/pgque-two-snapshots-and-a-diff/).
+
 ### Redis
 
 For many teams, Redis is the natural choice for job queues.  Using Redis lists (BRPOPLPUSH or the Streams API), you get:
