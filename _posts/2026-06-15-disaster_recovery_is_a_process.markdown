@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Disaster Recovery is a Process, Not a Tool"
-date:   2026-06-09 00:00:00 -0800
+date:   2026-06-15 00:00:00 -0800
 tags: PostgreSQL postgres disaster-recovery dr rto rpo runbook game-day high-availability operations
 comments: true
 categories: postgres
