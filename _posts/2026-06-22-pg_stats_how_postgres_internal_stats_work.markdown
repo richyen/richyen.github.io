@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "pg_stats: How Postgres Internal Stats Work"
-date:   2026-06-08 00:00:00 -0800
+date:   2026-06-22 00:00:00 -0800
 tags: PostgreSQL postgres pg_stats pg_statistic analyze query-planner statistics histogram mcv extended-statistics explain
 comments: true
 categories: postgres
