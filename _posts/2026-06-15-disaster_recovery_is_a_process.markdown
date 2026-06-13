@@ -1,155 +1,110 @@
 ---
 layout: post
-title:  "Disaster Recovery is a Process, Not a Tool"
+title:  "Disaster Recovery is a Process, Not a Tool (Part 1)"
 date:   2026-06-15 00:00:00 -0800
-tags: PostgreSQL postgres disaster-recovery dr rto rpo runbook game-day high-availability operations
+tags: PostgreSQL postgres disaster-recovery dr rto rpo high-availability operations
 comments: true
 categories: postgres
 ---
 
-## Introduction
+## The Landscape Has Changed
 
-It's 3AM.  My wife shakes me awake -- my phone is buzzing.  I roll out of bed, walk through a cold house to my desk, and join the chat.  The website is hanging and students can't submit papers.  We start filtering through symptoms while we wait for everyone else to climb out of bed and get on the bridge.  The CTO is the de-facto incident commander.  A few minutes later, somebody finally runs the right command and we get our answer: **Input/Output error**.  The filesystem is mounted, but `ls` gives us an error message in the terminal -- the disk has failed.  By the time we agree on a plan (promote the standby, have the sysadmins swap the disk in the morning, rebuild the old primary as a new standby), it's 4AM.  I'm back in bed at 5:30.
+When I was at Turnitin, we were still kind of riding the tail end of the dot-com boom.  People were rushing to ship things, and brief outages were not exactly *good*, but they were considered a normal part of running software on the internet.  If the site was down for a few minutes, you'd shrug, dig in, and fix it.
 
-What I just described is what military folks call the *fog of war* -- incomplete information, unclear authority, and time pressure all at once.  In my experience, both as the on-call engineer at Turnitin and later as a Support Engineer at EDB, a lot of disaster recovery (DR) planning is really about trying to cut through that fog *before* the pager goes off.
+That's not really the world we live in anymore.  Uptime is much more sensitive than it used to be.  Five nines used to be the stretch goal -- now four nines is something a lot of teams just treat as the expectation, and even a few minutes of outage in a month feels like a lot.  We don't really track averages in our metrics anymore, either; we track p99 latencies, because we actually care about that last 1% of users having a good experience.
 
----
+The other thing that's changed is how quickly outages get socialized.  A noticeable hiccup in your service can end up on social media before your on-call has even finished acknowledging the page.  In my experience, the worst situations are the ones where customers find out about an issue before the company does.  That has both a financial cost and a reputational cost, and the reputational cost tends to linger long after the incident is resolved.  Frequent outages chip away at users' willingness to keep using your product.
+
+Postgres is, of course, no exception.  So that's the world a Postgres DR plan has to operate in.
 
 ## What Counts as a Disaster?
 
-After Turnitin, I joined EDB and spent years on the support side of the phone.  One thing I noticed pretty quickly is that disasters happen -- big and small -- and not every team is as ready for them as they think they are.
+When people hear "disaster recovery," I think the natural mental picture is a natural disaster -- a flood, an earthquake, a wildfire, or maybe a long utility outage that takes a data center offline.  And those are real concerns; we put generators and solar panels and multi-region replication in place partly to deal with exactly that.
 
-So what counts as a disaster?  I tend to use a fairly broad definition: **anything that meaningfully affects the reliability or availability of the database layer** is worth treating as one.  It doesn't have to be a meteor strike.  Practically, most of the disasters I see fall into four categories:
+But in my experience, most of the disasters that take a Postgres database down don't look anything like that.  They look like:
 
-- **Hardware failure** -- like the 3AM disk incident.  I've also heard from someone recently about RAM sticks going bad too.
-- **Logical corruption** -- a bad deploy that ran the wrong migration, or a developer reviewing data who forgot a `WHERE` clause and updated every row.  Self-healing won't fix these kinds of disasters.
-- **Malicious actor** -- ransomware, or a disgruntled insider with `DROP` privileges.
-- **Human error**
+- A performance regression after a failover, where the service is technically "up" but slow enough that customers can't really use it.
+- Corruption from a bad migration -- something the deployment pipeline didn't catch, and now half the rows in a table look wrong.
+- A security incident, where somebody got in and may have tampered with data.
+- A subtle application bug that writes the wrong values, or reads them back the wrong way, for days before anyone notices.
+- Replication that quietly broke, or WAL that quietly went missing.
+- Accidental deletes -- the classic missing `WHERE` clause.
 
-Some of these can be prevented with good monitoring and tooling.  When prevention falls short, what tends to save the day is **process**.  Tools like [repmgr](https://www.repmgr.org/) or [EFM](https://www.enterprisedb.com/docs/efm/latest/) do a great job of performing a failover, but knowing *when* to use them, *who* gets to call it, and *what* happens after isn't really a tool problem -- it's a process problem.
+If I had to put a definition on it, I'd probably say something like: a disaster is any sustained event that compromises a system's availability, correctness, or business trust.  Availability is the one that gets the most attention, but the other two are arguably more dangerous, because they tend to be discovered later and resolved with less confidence.
 
-One way I like to think about it: **a runbook is a DBA's test suite**, and a Game Day is the integration test you run in a production-like environment.  Reliability tends to track pretty closely with how often a team has practiced losing it.
+## How DR Is Usually Done
 
----
+If you ask most teams how they do disaster recovery, you'll usually hear two words -- not because they're wrong, but because they're the first things that come to mind.  Those words are **preparation** and **prevention**.
 
-## RTO and RPO: The Numbers That Drive Everything
+Preparation looks like checklists, backups, monitoring, scenarios to think through, and playbooks of various levels of detail.  Prevention looks like alerting, automated remediation, self-healing systems, Patroni, redundancy, load balancing, and so on.  Both are good.  Benjamin Franklin's "an ounce of prevention is worth a pound of cure" is on the wall of more than one ops team I've worked with, and there's a reason for that -- prevention really is cheaper than recovery on average.
 
-Before you write a single runbook, you need two numbers from the business:
+But preparation and prevention only get you so far, and I don't think they're really the same thing as recovery.  Recovery is what happens after preparation and prevention have already failed to keep the lights on.  It's the act of taking a system that's already down (or already untrustworthy) and restoring business operations.
 
-- **RTO (Recovery Time Objective)**: how long are we allowed to be down?  Put another way, how long do we have before we need to declare "the disaster is over"?  This is a business decision, not a DBA decision.  It requires conversation with leadership.  A lower RTO is achievable, but it's expensive -- it requires structure, automation, and rehearsal.  Well-written and well-practiced runbooks will drive down the recovery time and get you to meet that RTO number.
-- **RPO (Recovery Point Objective)**: how much data are we allowed to lose?  Failing over to a standby that already had replication lag will cost you some transactions.  Restoring from a backup might cost you hours of writes.  There's a give-and-take between RPO and RTO, and again, this is a business decision.
+That distinction sounds almost too obvious to say out loud, but in my experience it's the part teams are least ready for.  A lot of the customers I worked with at EDB were genuinely well-prepared, with great backups and good monitoring, and they were *still* unprepared the day they actually had to recover.  I've been in that seat too, as a DBA -- everything was in place on paper, and we still fumbled the first real incident.  Recovery is its own skill.
 
-Both can be driven low, but doing so usually costs time, money, and headcount.  If leadership is hoping for a 5-minute RTO and zero RPO, they need to be prepared to fund things like cascading replication, synchronous standbys, deeper monitoring, and regular drills.
+## Postgres Already Gives Us Most of the Tools
 
----
+One nice thing about Postgres is that the toolbox for recovery is already pretty good.  Off the top of my head, there's `pg_dump` and `pg_restore` for logical backups, `pg_basebackup` for physical ones, `pg_stat_replication` to see what your standbys are doing, `pg_stat_activity` to see what your sessions are doing, point-in-time recovery for anything more granular than "last night's backup," and tools like [repmgr](https://www.repmgr.org/) and [EFM](https://www.enterprisedb.com/docs/efm/latest/) (and pgBackRest, Barman, and others) for orchestration and richer backup workflows.
 
-## Support Engineers Are Not Your DR Plan
+These tools are not the bottleneck.  In nearly every case I worked at EDB, the question wasn't "do we have the technology to recover?"  It was, "do we know *when* to use it, *how* to use it, and *who* gets to make the call?"  I had a customer once who had perfectly good backups -- they really did -- but they opened a P1 ticket asking me to walk them through the keystrokes for the restore.  I think they actually knew what to do; they were just afraid, in the moment, of typing the wrong thing.  That's a process gap, not a tool gap, and no amount of additional automation would have fixed it.
 
-A pattern I saw a few times while at EDB:
+I'd add a slightly uncomfortable note here: as a vendor's support engineer, I was always happy to help, but we probably shouldn't be the centerpiece of anyone's DR plan.  Support engineers can hand you tools and walk you through documentation, but we don't know your data the way your team does, and there's a liability we're not really supposed to take on.  If the first time a team reads the failover documentation is during the outage, a support contract alone isn't going to close that gap.
 
-- Customers opening a P1 ticket asking for the steps to restore a backup
-- Customers asking how to fail over to a standby -- *while the primary was already down*
-- "Can you stay on the bridge with us?"
+## RPO and RTO, and Why They're Negotiations
 
-I was always happy to help -- that's the job.  But it's worth saying gently: a vendor's support team probably shouldn't be the centerpiece of a DR plan.  We can hand over tools, walk through documentation, and help drive a recovery.  However, we can't make business decisions on your behalf, define RPO, practice runbooks, or serve as the named incident commander.  Support Engineers cannot be expected to be DBAs, primarly because of lack of knowledge about a customer's data layer, not to mention the liability that we're not supposed to take.
+You can't really talk about recovery without talking about RPO and RTO, so let me do that briefly.
 
-If the first time a team reads the failover documentation is during the outage itself, that's a sign there's a gap a support contract alone isn't going to close.
+**RPO** (Recovery Point Objective) is roughly "how much data are we willing to lose?"  Do we restore from last night's backup and accept losing the day's writes?  Or do we replay WAL and try to get as close as we can to the moment of the outage?
 
----
+**RTO** (Recovery Time Objective) is "how long are we allowed to be down before we're considered back up?"
 
-## The Boring Win: A Story About a Release
+Every choice on either of these axes is a trade-off -- against cost, against complexity, against operational burden, against acceptable business loss.  And the reality is that during an outage, you really are losing business; transactions don't happen, shopping carts don't get checked out, customers get frustrated.  At the same time, getting up faster usually means accepting more data loss, or paying more for the infrastructure to avoid it.
 
-Not every story I have from Turnitin is a 3AM disaster.  Here's one that went the other way.
+It's helpful to think about RPO in tiers:
 
-We had a major release coming up -- the kind with schema changes, data migrations, and a hard maintenance window.  As part of the release planning, we wrote out every command, in order, copy-pasteable.  We practiced it in dev and in staging.  On release day, we executed the plan, finished early, well before the end of the planned maintenance window.
+- A **24-hour RPO** is basically "restore last night's backup."  One or two people can usually handle it, the moving parts are simple, and the data loss can be substantial.  That's fine for some workloads.  It's not really acceptable for high-traffic services where 24 hours of writes is a lot.
+- A **15-minute RPO** generally means WAL archiving or shipping, monitoring to make sure none of that WAL goes missing, regular validation that you can actually restore in 15 minutes, and operational discipline around retention.  That's reasonable for many systems, but probably not acceptable for, say, a financial institution.
+- A **near-zero RPO** typically means synchronous replication and tightly managed failover.  Now you're dealing with latency between nodes, distributed-systems complexity, split-brain scenarios, and a much bigger operational footprint.
 
-I bring up the release because in a lot of ways, releases and disasters look pretty similar from an operational standpoint: high-stakes, time-bounded, multi-step procedures executed under pressure.  The reason that release went well is roughly the same reason a DR plan tends to work -- we'd rehearsed it.  After that release, we started building out runbooks for DR scenarios using a similar approach.
+Lower RPO isn't just "better."  It's a design and operational commitment, and that commitment costs money, time, and people's attention.
 
-A few things from the release that I think translate well into DR planning:
+The same is true of RTO.  Driving RTO below five minutes generally requires automation and -- this part is important -- rehearsal.  If you hand someone a document for the first time during an actual outage, they are not going to execute it quickly, no matter how clear the document is.
 
-- **Commander vs. Operator.**  The release plan had a *named commander* on the doc, and that small thing made a big difference.  The Commander runs the call and owns communication; the Operator owns the keyboard.  Trying to do both jobs at once tends to go badly.
-- **Copy-pasteable commands.**  At 3AM, tired, most of us would rather not be composing `pg_basebackup` invocations from memory.  A runbook that lets you execute, rather than improvise, takes a lot of pressure off.
-- **Decision trees, not prose.**  "If X, do Y; otherwise, do Z" is a lot easier to follow at 3AM than a paragraph of explanation.
+This is why I think RPO and RTO really need to be *negotiated*, not just declared.  On the surface it's almost a no-brainer -- of course everyone wants an RPO of zero and an RTO of seconds.  But when you actually go to leadership and lay out what those numbers cost, you tend to find out pretty quickly where their priorities really sit.  In a lot of cases, they'd rather spend that money on something that looks more directly tied to the business -- a new feature, a marketing push, another engineer on the product team -- and they're willing to accept a softer RPO or RTO in exchange.  That's a legitimate answer; it just needs to be made explicitly, instead of being assumed one way or the other by the infrastructure team.
 
-This is also part of why a wiki page on its own often isn't quite enough.  A wiki tends to describe the system; a runbook tells what to type next.  Wikis can drift quietly over time, while runbooks tend to fail loudly the first time you drill them -- which, honestly, is exactly when you want them to fail.
+## Three Layers of DR Planning
 
----
+When I think about what a DR plan needs to cover, I find it useful to break it into three layers.
 
-## A Framework: Detect → Decide → Restore → Validate → Communicate
+The first layer is **infrastructure failure**.  This is the one most teams think of first: a region goes down, storage fails, a corruption bug bites, credentials leak, somebody accidentally deletes a table, replication breaks.  Hardware and platform behaving badly.
 
-Most runbooks I've worked on end up fitting into roughly the same five phases:
+The second is **procedural failure**.  Even if the infrastructure problem is well-understood, you can still fail recovery because the procedure is wrong.  Maybe the sequence values weren't included in the backup and you didn't realize.  Maybe the runbook references a CNAME nobody can find the host for anymore.  We used to have a setup at Turnitin where, on every failover, we had to repoint a CNAME to the new primary, and we eventually realized that nobody had documented which CNAME pointed to which underlying host.  Maybe the validation step is vague.  Procedural failure tends to be invisible until the moment you actually need the procedure.
 
-1. **Detect** -- monitoring caught it, or a human did.  How do you confirm what's actually broken?
-2. **Decide** -- who calls it?  What's the threshold to declare an incident?  Who is the Commander?
-3. **Restore** -- the actual recovery steps.  Failover, restore from backup, kill the bad query, revert the deploy.
-4. **Validate** -- is the database actually healthy?  Are reads and writes succeeding?  Did replication catch back up?
-5. **Communicate** -- status page, customer comms, internal stakeholders, post-incident timeline.
+The third is **human failure**.  People behave differently under duress.  Some panic.  Some zone in so hard on one screen that they miss the bigger picture.  There are conflicting instructions between managers, between teams, between people trying to be helpful.  There's the 3AM call where the on-call is barely awake and not entirely sure what's going on.  And there's the person who can't wait for the process and decides to just do something heroic and fast -- which sometimes works, and sometimes makes things significantly worse.
 
-Each scenario gets its own runbook walking through those five phases.  Some examples worth having on the list:
+To make the layers concrete: I had a 3AM incident at Turnitin once where we rolled out a change in the evening and got paged a few hours later.  The disk had filled, and the filesystem ended up unmounted.  That was the infrastructure failure.  In the scramble to bring it back, somebody tried to remount it as `ext4` instead of `xfs` -- that was strike one, a procedural failure, because the runbook didn't make the filesystem type explicit.  Then we sat for a while waiting on the CTO, because nobody on the bridge had clear authority to call any of the next steps -- strike two, no incident commander.  And then somebody prematurely brought the web servers back up before the database was really healthy, causing a second round of errors -- strike three, the hero move.  No single one of those was catastrophic; together they turned a one-hour problem into a much longer night.  That's what the three layers look like in practice.
 
-- Failed disk
-- Failed replica
-- Lost data (the missing-`WHERE`-clause case)
-- Corrupted data
-- OOM / memory pressure
-- Network partition (the "someone removed a VPC" case)
-- Ransomware / unauthorized `DROP`
-- Failed deploy / bad migration
+## Recovery Isn't Always About Failing Over
 
-You don't need all of these on day one.  Even one, tested, with a plan to write the next, puts you in much better shape than most teams.
+A lot of DR talks (and a lot of DR vendors) make it sound like "recovery" basically means "fail over to the standby."  That's one tool in the box, but it's nowhere near the whole box.
 
----
+Here's a story that's stuck with me.  I was on a small team that shipped a release, and the migration looked clean -- everything came up, the smoke tests passed, we went home feeling pretty good.  Later, somebody noticed that the application code had a small typo in its SQL: an extra apostrophe was getting written into every comment in a comment thread.  The data wasn't lost.  The system was up.  But the data was *wrong*, and it kept getting more wrong every minute the application stayed online.
 
-## Where Does AI Fit?
+In that particular case, a careful `UPDATE` across the table was probably the right call, with all the locking and performance impact that implies.  But if you change the details a little -- say the corruption is medical records, or it isn't discovered for a few days, or some of those rows have already been read by other systems and propagated outward -- a simple `UPDATE` stops being the answer.  Now you're asking whether you have enough WAL retained to do point-in-time recovery, whether you can safely update some rows in place, when exactly the corruption started, and so on.
 
-My honest take is that AI is genuinely useful in DR work -- but it's most useful in the parts of the framework where the answer is fairly mechanical, and least useful in the parts where judgment matters most.
+I bring it up because that scenario is just as much a disaster, and just as worth planning for, as a disk failing or a region going dark.  And it can't be solved by failing over -- the standby would have the bad data too.
 
-Where I think AI can help quite a bit:
+While I'm telling stories about quietly-bad situations: another underrated failure mode is "the engineer who knew this part of the system went on vacation," or quit, or moved teams, and the documentation never quite got updated.  Real DR plans have to assume some of that, too.
 
-- **Detect.**  Anomaly detection on metrics, log summarization, correlating a spike in `pg_stat_activity` with a deploy that just landed -- this is the kind of pattern-matching work AI is good at, and it can absolutely shorten the time between "something is weird" and "here is what looks weird."
-- **Drafting runbooks.**  Generating a first pass of a runbook from a description of an architecture, or suggesting edge cases you may not have considered, is a reasonable use of an LLM.  Just treat the output as a draft your team reviews and tests, not as a finished artifact.
-- **Assisting the Operator.**  Summarizing what's happened on a long incident bridge, surfacing relevant past incidents, suggesting the next diagnostic command -- all of that can reduce the cognitive load on whoever is at the keyboard at 3AM.
-- **Post-incident.**  Writing a first draft of a timeline from chat logs and metrics is a chore that AI handles reasonably well, freeing humans to focus on the *why*.
+## What Lower Numbers Actually Cost
 
-Where I'd be more cautious:
+Negotiating RPO and RTO sounds abstract until you start listing the consequences.  Wanting an RPO of zero pushes you toward synchronous replication and forces you to live with the latency that comes with it.  Wanting an RTO of under five minutes pushes you toward automation that has to be built, tested, and maintained, and toward rehearsal cadence that has to be on someone's calendar.  Multi-region pushes operational complexity up significantly -- you've got clusters in different regions talking to each other, you've got cross-region replication lag to tolerate, and now your monitoring story has to account for all of it.  Even something as innocuous as "we'd like to be able to do point-in-time recovery to any second over the last 30 days" can mean keeping terabytes of WAL around and paying for storage you barely look at.
 
-- **Deciding whether to declare an incident.**  This is a judgment call that involves business context, customer impact, and political nuance an AI usually doesn't have.
-- **Picking which runbook to run.**  Two scenarios can look very similar in metrics and be very different in cause -- a failed disk and a network partition can both present as "primary unreachable."  Picking the wrong runbook can make things worse.
-- **Executing destructive commands unattended.**  Promoting a standby, dropping a replication slot, running `pg_resetwal` -- these are easy to get wrong and very hard to undo.  I'd want a human in the loop for any of them, even if AI is suggesting the command.
-- **Owning communication.**  Customers and stakeholders need a human accountable on the other end, especially when the news isn't good.
+None of this is a reason not to do these things.  It's just a reason to have honest conversations about which of them you actually need.
 
-The way I'd frame it: AI can do a lot of the work of *noticing* and *suggesting*, and it can take some of the toil out of running and writing runbooks.  But the **decisions** -- which runbook applies, when to declare, when to fail over, when to call it done -- still want a human's name on them.  In the framework above, AI tends to be most helpful around Detect, parts of Restore, and Communicate (drafting, not sending).  Decide is still mostly a human's job, and probably should be for a while.
+## To Be Continued
 
-A practical rule of thumb I've started using: **if it's reversible, AI assistance is great.  If it's not, a human MUST sign off.**
+That covers what I think of as the framing half of the talk: what counts as a disaster, why preparation and prevention aren't the same as recovery, and how RPO and RTO end up being negotiations rather than declarations.
 
----
+In two weeks, I'll get into the part that I think could reduce RTO (something that can't be replaced by AI): runbook engineering, game days, what to measure, and the cultural piece that holds it all together.
 
-## Game Days: The Drill Is the Point
-
-In offices and schools throughout the world, there are fire drills, earthquake drills, and tornado drills.  Every professional sports team spends hours each day practicing plays so that on Game Day, they all know what to do and where to go.
-
-Database engineering teams benefit from doing something similar.
-
-Writing a runbook is really only half the work.  The other half is *running* it.  A controlled burn -- an intentional outage, on a dev or staging environment, or even on a standby in production -- ideally lives somewhere on the team's roadmap rather than in the "we'll get to it" pile.
-
-There's a saying that "a backup isn't really a backup until you've restored it".  I think the same applies to runbooks: until you've drilled one, you don't really know whether it works.
-
-A few rules I've found useful for running drills safely:
-
-- **Start in staging or on a standby.**  Never on the prod primary first.
-- **Schedule it and announce it.**  The *drill* is the surprise; the *date* is not.  You're testing the runbook, not your team's reflexes at 2AM on a holiday.
-- **One failure mode per drill.**  Don't combine "disk fails AND network partitions AND VP of Engineering is on a plane."
-- **Define the success criterion before you start.**  "We restored within 30 minutes" is testable.  "It went well" is not.
-- **Run a retrospective within 48 hours,** while memory is fresh.
-
-One more thing that doesn't really fit on a checklist but I think matters as much as any of them: **blameless retrospectives**. It needs to be clear that the purpose of the retrospective is to identify any areas where the runbook can be improved or clarified, not how an engineer failed to perform a task or a commander failed to call out a step. 
-
----
-
-## Conclusion
-
-If I had to summarize all of the above in a sentence, it would be that disaster recovery is mostly a process, and that process is captured in runbooks.  "Trust the process" usually means following the runbook even when your instinct disagrees -- a bit like following a cake recipe even though it looks like more butter than seems right.  A good process also tends to improve over time: every drill, every retro, and every real incident is a chance to make the next one a little more boring.
-
-Tools and AI both enable DR work.  Process and the people running it are what tend to keep the business intact when something actually goes wrong.
-
-If nothing else, I'd suggest picking a Tuesday next month, killing a replica in a safe environment, and seeing what happens.  The first drill is almost always the most informative one.  Good luck!
