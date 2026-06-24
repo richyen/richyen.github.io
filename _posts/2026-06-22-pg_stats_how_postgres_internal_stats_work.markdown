@@ -9,7 +9,7 @@ categories: postgres
 
 ## Introduction
 
-I recently had the privilege of speaking at [POSETTE 2026](https://posetteconf.com/2026/) about `pg_stats` and how Postgres internal statistics work.  This post is a written companion to that talk -- aimed at giving you a working understanding of what `pg_stats` is, how it's populated, and how it shapes the decisions the query planner makes on your behalf.
+I recently had the privilege of speaking at [POSETTE 2026](https://posetteconf.com/2026/) about `pg_stats` and how Postgres internal statistics work ([YouTube Recording](https://www.youtube.com/watch?v=CvvA5P1b5No&list=PLOBORF8Y_l8g&index=24)).  This post is a written companion to that talk -- aimed at giving you a working understanding of what `pg_stats` is, how it's populated, and how it shapes the decisions the query planner makes on your behalf.
 
 Imagine a `customers` table that looks roughly like this:
 
