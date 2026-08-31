@@ -7,6 +7,7 @@ comments: true
 categories: postgres
 ---
 
+### Did you know: PG19 is on track to contain the most changes to `pg_catalog` in history
 # Introduction
 
 `pg_catalog` is one of the most important interfaces PostgreSQL gives us: it exposes the metadata that describes database structure -- tables, columns, indexes, constraints, types, and dependencies -- alongside views into what the server is doing right now.  When diagnosing replication lag, long-running or blocked queries, idle transactions, lock contention, vacuum activity, and other real-time performance problems, `pg_catalog` is often where I'm spending my time poking around.
@@ -21,6 +22,7 @@ Those answers are available in the PostgreSQL documentation, tracking changes ov
 
 I wanted something simpler, and [pg-catalog-almanac](https://richyen.com/pg-catalog-almanac/), a browsable representation of the PostgreSQL documentation for `pg_catalog` hopefully accomplishes that.
 
+![pg-catalog-almanac-home](https://raw.githubusercontent.com/richyen/pg-catalog-almanac/main/docs/home.png)
 
 ---
 
@@ -32,15 +34,17 @@ I wanted that same experience for PostgreSQL's system catalogs, system views, an
 
 ---
 
-# Some Neat Discoveries
+# Some Interesting Discoveries
 
-Once I got the versions placed next to each other, I found these observations to be somewhat interesting.  Might not be interesting to others, but it got my attention
+Once I got the versions placed next to each other, I found these observations to be somewhat interesting.  Might not be interesting to others, but it got my attention!
 
 ## 1. PostgreSQL 19 Has the Most New Relations in the Dataset
 
 As of PostgreSQL 19 beta 3, the upcoming release adds **12 catalogs and views** and **43 columns**.  That is the largest number of new relations in any release after the PostgreSQL 9.6 baseline.  PostgreSQL 10 is the next closest with 11.
 
 Five of the new catalogs support SQL property graphs: `pg_propgraph_element`, `pg_propgraph_element_label`, `pg_propgraph_label`, `pg_propgraph_label_property`, and `pg_propgraph_property`.
+
+![what-changed-in-pg19](https://raw.githubusercontent.com/richyen/richyen.github.io/refs/heads/gh-pages/img/what-changed-in-pg19.png)
 
 There are also several operationally interesting additions: `pg_stat_lock`, `pg_stat_recovery`, and `pg_stat_autovacuum_scores`, along with progress views for `REPACK` and online data checksum changes.  At a glance, PostgreSQL 19 looks like a significant expansion in both SQL features and operational visibility.
 
@@ -58,6 +62,8 @@ The histories of [`pg_collation`](https://richyen.com/pg-catalog-almanac/#/r/pg_
 In PostgreSQL 15, `pg_collation.collcollate`, `pg_collation.collctype`, `pg_database.datcollate`, and `pg_database.datctype` changed from `name` to `text`.  Locale values are not identifiers, and `text` permits customized ICU locale names longer than the 63-byte identifier limit while also saving space for typical short locale names.
 
 Then PostgreSQL 17 added a built-in, platform-independent collation provider.  The ICU-specific `colliculocale` and `daticulocale` names became the provider-neutral `colllocale` and `datlocale`.
+
+![pg-collation-changes](https://raw.githubusercontent.com/richyen/richyen.github.io/refs/heads/gh-pages/img/pg-collation-changes.png)
 
 ---
 
