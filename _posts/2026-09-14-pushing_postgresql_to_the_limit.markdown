@@ -31,4 +31,8 @@ A credible benchmark needs to run long enough to include a few autovacuum and ch
 
 So strict hardware benchmarking still has a place, and it should be done separately.  `fio` is the right tool when the question is storage performance.  A Postgres benchmark has a different aim: understanding whether a particular database workload can run on a particular system, where it stops scaling, and what constraint we meet first.
 
-I'll dig into that process at PG Summit 2026, including HammerDB, `pgbench`, workload design, and the evidence that helps us identify the real bottleneck.  I hope to see you there!
+I'll dig into that process at PG Summit 2026, including HammerDB, `pgbench`, workload design, and the evidence that helps us identify the real bottleneck.
+
+## An Exciting and Packed Schedule
+
+There are [a lot of exciting presentations scheduled for PG Summit 2026](https://postgresql.us/events/postgressummitus2026/schedule/) and I'm looking forward to gaining greater insight and practical knowledge from all the sessions.  Four tracks scheduled -- it's gonna be hard to choose which ones to attend.  I'm looking forward to meeting everyone there!
