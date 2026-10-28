@@ -9,15 +9,15 @@ categories: postgres
 
 ## Same Query, Same Index, Different Performance
 
-I recently worked with a customer planning a migration from on-premises PostgreSQL to Azure Database for PostgreSQL.  During performance testing, they noticed something troubling: a query that completed in tens of milliseconds in other environments could take 1-2 seconds in the Azure environment being evaluated.
+I recently worked with a customer planning a migration from on-premises PostgreSQL to Azure Database for PostgreSQL.  During performance testing, they noticed something troubling: a query that completed in tens of milliseconds would now take 1-2 seconds in the Azure environment being evaluated.
 
-The query was using an index scan, and running it again was fast.  But once the relevant data was evicted from cache, the long execution time came back.  Naturally, the conversation turned toward storage performance.  Was the cloud storage slower?  Did we need more IOPS?
+The query was using an index scan, and running it again was fast.  But once the relevant data was evicted from cache, the long execution time came back.  Naturally, the conversation turned toward storage performance.  There was a clear difference in IOPS consumption, with the to-be-production server having 10-20% more IOPS consumption than a server they stood up for comparison purposes.  A cold-cache query execution that performed a single Index Scan pulled over 100 pages from heap, whereas the other server only pulled 60 pages.  The natural inclination was to think that somehow bloating and/or fragmentation was the cause, so they tried `VACUUM FULL` but did not see any improvement.  That's when they turned to us.
 
-Those were reasonable questions, but there was another question we needed to answer first: **Was each environment actually doing the same amount of I/O?**
+## Is the Index Really the Problem?
 
-## An Index Doesn't Organize the Table
+The primary concern that the customer had -- an Index Scan was not performing as well as expected -- led them to think that something was wrong with the index, whether it was bloat, leaf density, fragmentation, or some other loss of efficiency.  Digging in with `pg_stattuple` and `pg_statindex`, we didn't see anything glaringly wrong with leaf density or fragmentation.  With the usual suspects out of the picture, we needed to get back to the basic principles of indexing.
 
-A regular index scan uses the index to locate matching tuples, then visits the table's heap pages to retrieve them.  The index is ordered; the heap doesn't have to be.
+It is important to remember that when it comes to indexing a table, a regular index scan uses the index to locate matching tuples, then visits the table's heap pages to retrieve them.  The index is ordered; the heap doesn't have to be.
 
 Suppose a query returns 200 rows.  If those rows live on five heap pages, Postgres can retrieve them with relatively little page access.  If they are scattered across 100 pages, retrieving the same 200 rows requires a much larger working set.  Both queries can say `Index Scan` in the execution plan, but that doesn't mean they do equivalent work.
 
@@ -27,7 +27,7 @@ When those pages are cached, the difference can be easy to miss.  When they need
 
 We compared `EXPLAIN (ANALYZE, BUFFERS)` output, looking beyond the scan type to buffer hits and reads.  One caveat: a shared-buffer read means the page wasn't in PostgreSQL's shared buffers, not necessarily that it came from physical storage -- the operating system may still have it cached.  I/O timings, when `track_io_timing` is enabled, help distinguish cheap reads from expensive ones.
 
-## Correlation Was the Hint
+## Small Hint: Look at Correlation
 
 One useful clue was in `pg_stats`.  Using generic table and column names here:
 
