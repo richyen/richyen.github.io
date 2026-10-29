@@ -15,7 +15,7 @@ The query was using an index scan, and running it again was fast.  But once the 
 
 ## Is the Index Really the Problem?
 
-The primary concern that the customer had -- an Index Scan was not performing as well as expected -- led them to think that something was wrong with the index, whether it was bloat, leaf density, fragmentation, or some other loss of efficiency.  Digging in with `pg_stattuple` and `pg_statindex`, we didn't see anything glaringly wrong with leaf density or fragmentation.  With the usual suspects out of the picture, we needed to get back to the basic principles of indexing.
+The primary concern that the customer had -- an Index Scan was not performing as well as expected -- surfaced two hypotheses: something was wrong with the index, (i.e., bloat, leaf density, fragmentation), or something was wrong with the storage.  Digging in with `pg_stattuple` and `pg_statindex`, we didn't see anything glaringly wrong with leaf density or fragmentation.  We also saw nothing from our telemetry that anything was wrong with the storage. With the usual suspects out of the picture, we needed to get back to the basic principles of indexing.
 
 It is important to remember that when it comes to indexing a table, a regular index scan uses the index to locate matching tuples, then visits the table's heap pages to retrieve them.  The index is ordered; the heap doesn't have to be.
 
