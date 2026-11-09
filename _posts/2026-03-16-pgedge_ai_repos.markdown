@@ -7,6 +7,8 @@ comments: true
 categories: postgres
 ---
 
+**2026-11-09 UPDATE:** _At the time of writing (March 2026), PgEdge had a `doc-converter` that seems no longer to exist.  I believe it may have been re-named to [pgedge-docloader](https://github.com/pgEdge/pgedge-docloader).  I have not had time to verify myself, but I believe this should be the correct repository._
+
 # Introduction
 
 If you’ve been paying attention to the technology landscape recently, you’ve probably noticed that AI is **everywhere**. New frameworks, new terminology, and a dizzying array of acronyms and jargon: **LLM**, **RAG**, **embeddings**, **vector databases**, **MCP**, and more.

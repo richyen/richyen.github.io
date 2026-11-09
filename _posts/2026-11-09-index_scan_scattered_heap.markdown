@@ -7,6 +7,8 @@ comments: true
 categories: postgres
 ---
 
+_Also posted in [Microsoft Blog for PostgreSQL](https://techcommunity.microsoft.com/blog/ADforPostgreSQL/an-index-scan-is-only-half-the-story-on-disk-ordering-affects-performance/4567802)_
+
 ## Same Query, Same Index, Different Performance
 
 I recently worked with a customer planning a migration from on-premises PostgreSQL to Azure Database for PostgreSQL.  During performance testing, they noticed something troubling: a query that completed in tens of milliseconds would now take 1-2 seconds in the Azure environment being evaluated.
@@ -22,8 +24,6 @@ It is important to remember that when it comes to indexing a table, a regular in
 Suppose a query returns 200 rows.  If those rows live on five heap pages, Postgres can retrieve them with relatively little page access.  If they are scattered across 100 pages, retrieving the same 200 rows requires a much larger working set.  Both queries can say `Index Scan` in the execution plan, but that doesn't mean they do equivalent work.
 
 ![The same 12 index entries point to just 2 heap pages when rows are packed together, versus 12 heap pages when rows are scattered.](https://raw.githubusercontent.com/richyen/richyen.github.io/refs/heads/gh-pages/img/index-scan-heap-visits.png)
-
-When those pages are cached, the difference can be easy to miss.  When they need to be read from storage, the extra page accesses become much more expensive.
 
 We compared `EXPLAIN (ANALYZE, BUFFERS)` output, looking beyond the scan type to buffer hits and reads.  One caveat: a shared-buffer read means the page wasn't in PostgreSQL's shared buffers, not necessarily that it came from physical storage -- the operating system may still have it cached.  I/O timings, when `track_io_timing` is enabled, help distinguish cheap reads from expensive ones.
 
