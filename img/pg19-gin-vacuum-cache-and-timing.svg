@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="660" viewBox="0 0 1000 660" role="img" aria-labelledby="title description">
+  <title id="title">GIN cleanup timings for small and large indexes</title>
+  <desc id="description">Median cleanup time from three independently prepared runs per version. For 0.50 and 2.78 GiB indexes, PG18 took 0.05 and 0.27 seconds; PG19 took 0.04 and 0.25 seconds. For 21.30 and 26.62 GiB indexes, PG18 took 12.51 and 25.19 seconds; PG19 took 9.83 and 11.43 seconds. Dots show all three large-index runs. The left panel ranges from zero to 0.30 seconds; the right from zero to 30 seconds. Both servers had 16 GiB shared buffers.</desc>
+  <rect width="1000" height="660" rx="16" fill="#f8fafc"/>
+  <g font-family="Segoe UI, Arial, sans-serif" fill="#0f172a">
+    <text x="40" y="46" font-size="27" font-weight="700">GIN cleanup: milliseconds saved, then seconds</text>
+    <text x="40" y="77" font-size="17" fill="#475569">Matched PG18 / PG19 deployments, each with 16 GiB shared_buffers</text>
+    <rect x="40" y="100" width="18" height="18" rx="3" fill="#2563eb"/>
+    <text x="68" y="115" font-size="16">PG18</text>
+    <rect x="150" y="100" width="18" height="18" rx="3" fill="#c65d12"/>
+    <text x="178" y="115" font-size="16">PG19</text>
+    <circle cx="280" cy="109" r="5" fill="#fff" stroke="#0f172a" stroke-width="1.5"/>
+    <text x="294" y="115" font-size="16">Individual runs shown on large-index bars</text>
+    <text x="90" y="156" font-size="20" font-weight="600">Smaller indexes</text>
+    <text x="90" y="180" font-size="15" fill="#475569">Zero target-index buffer reads observed</text>
+    <text x="590" y="156" font-size="20" font-weight="600">Larger indexes</text>
+    <text x="590" y="180" font-size="15" fill="#475569">Target-index buffer reads observed</text>
+    <g stroke="#dbe3ee" stroke-width="1">
+      <path d="M90 200H450 M90 293.333H450 M90 386.667H450 M90 480H450"/>
+      <path d="M590 200H950 M590 293.333H950 M590 386.667H950 M590 480H950"/>
+    </g>
+    <g font-size="14" fill="#64748b" text-anchor="end">
+      <text x="80" y="205">0.30 s</text>
+      <text x="80" y="298.333">0.20</text>
+      <text x="80" y="391.667">0.10</text>
+      <text x="80" y="485">0</text>
+      <text x="580" y="205">30 s</text>
+      <text x="580" y="298.333">20</text>
+      <text x="580" y="391.667">10</text>
+      <text x="580" y="485">0</text>
+    </g>
+    <path d="M515 145V534" stroke="#cbd5e1" stroke-dasharray="4 5"/>
+    <g fill="#2563eb">
+      <rect x="138" y="433.333" width="38" height="46.667" rx="3"/>
+      <rect x="318" y="228" width="38" height="252" rx="3"/>
+      <rect x="638" y="363.24" width="38" height="116.76" rx="3"/>
+      <rect x="818" y="244.893" width="38" height="235.107" rx="3"/>
+    </g>
+    <g fill="#c65d12">
+      <rect x="184" y="442.667" width="38" height="37.333" rx="3"/>
+      <rect x="364" y="246.667" width="38" height="233.333" rx="3"/>
+      <rect x="684" y="388.253" width="38" height="91.747" rx="3"/>
+      <rect x="864" y="373.32" width="38" height="106.68" rx="3"/>
+    </g>
+    <g fill="#fff" stroke="#0f172a" stroke-width="1.5">
+      <circle cx="649" cy="360.813" r="5"/>
+      <circle cx="657" cy="363.24" r="5"/>
+      <circle cx="665" cy="366.6" r="5"/>
+      <circle cx="695" cy="388.253" r="5"/>
+      <circle cx="703" cy="387.227" r="5"/>
+      <circle cx="711" cy="404.4" r="5"/>
+      <circle cx="829" cy="240.973" r="5"/>
+      <circle cx="837" cy="244.893" r="5"/>
+      <circle cx="845" cy="330.387" r="5"/>
+      <circle cx="875" cy="372.48" r="5"/>
+      <circle cx="883" cy="374.907" r="5"/>
+      <circle cx="891" cy="373.32" r="5"/>
+    </g>
+    <g font-size="16" font-weight="600" text-anchor="middle">
+      <text x="157" y="421">0.05</text>
+      <text x="203" y="430">0.04</text>
+      <text x="337" y="216">0.27</text>
+      <text x="383" y="235">0.25</text>
+      <text x="657" y="343">12.51</text>
+      <text x="703" y="370">9.83</text>
+      <text x="837" y="224">25.19</text>
+      <text x="883" y="354">11.43</text>
+    </g>
+    <g text-anchor="middle">
+      <g font-size="16" font-weight="600">
+        <text x="180" y="507">0.50 GiB</text>
+        <text x="360" y="507">2.78 GiB</text>
+        <text x="680" y="507">21.30 GiB</text>
+        <text x="860" y="507">26.62 GiB</text>
+      </g>
+      <g font-size="14" fill="#475569">
+        <text x="180" y="529">1 million rows</text>
+        <text x="360" y="529">10 million rows</text>
+        <text x="680" y="529">100 million rows</text>
+        <text x="860" y="529">125 million rows</text>
+      </g>
+    </g>
+    <rect x="40" y="554" width="920" height="58" rx="8" fill="#e2e8f0"/>
+    <text x="60" y="579" font-size="17" font-weight="600">Different time scales: 0-0.30 seconds on the left; 0-30 seconds on the right.</text>
+    <text x="60" y="601" font-size="15">Bars show medians of three runs. Dots show large-index variation, including the faster third PG18 run.</text>
+    <text x="40" y="640" font-size="14" fill="#475569">Fresh-index cleanup, fastupdate=off, serial VACUUM. Buffer reads can be served by OS or storage caches.</text>
+  </g>
+</svg>
